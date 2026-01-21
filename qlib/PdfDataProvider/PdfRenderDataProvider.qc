@@ -1,5 +1,5 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfRenderDataProvider class definition
+#! @file PdfRenderDataProvider.qc provides the PdfRenderDataProvider class definition
 
 /** PdfRenderDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
@@ -24,7 +24,18 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! Rendering actions provider
+/** @brief Data provider for PDF rendering and text extraction operations
+
+    This provider exposes rendering actions (requires PDFium):
+    - @b page - Render a PDF page to raw BGRA bitmap
+    - @b extract-text - Extract text content from a page
+
+    @note This provider is only available when the pdf module is built with PDFium support.
+    Use @ref PdfRenderer::isAvailable() to check availability.
+
+    @par Data Provider Path
+    Access via: pdf{}/render/<action>
+*/
 public class PdfRenderDataProvider inherits AbstractDataProvider {
     public {
         const ProviderInfo = <DataProviderInfo>{

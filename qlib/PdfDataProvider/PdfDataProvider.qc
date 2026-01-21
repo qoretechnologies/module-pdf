@@ -1,5 +1,5 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfDataProvider class definition
+#! @file PdfDataProvider.qc provides the PdfDataProvider class definition
 
 /** PdfDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
@@ -24,7 +24,16 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! Root PDF data provider
+/** @brief Root data provider for PDF operations
+
+    This is the root data provider that provides access to PDF document operations through
+    child providers:
+    - @ref PdfDocumentDataProvider "document" - Document manipulation operations
+    - @ref PdfRenderDataProvider "render" - Rendering and text extraction (requires PDFium)
+
+    @par Data Provider Path
+    Data providers are accessed through paths like: pdf{}/document/create
+*/
 public class PdfDataProvider inherits AbstractDataProvider {
     public {
         const ProviderInfo = <DataProviderInfo>{
@@ -36,15 +45,23 @@ public class PdfDataProvider inherits AbstractDataProvider {
     }
 
     private {
-        const ChildMap = {
+        #! Child map without render (always available)
+        const BaseChildMap = {
             "document": "PdfDataProvider::PdfDocumentDataProvider",
-            "render": "PdfDataProvider::PdfRenderDataProvider",
         };
         *hash<auto> opts;
+        #! Actual child map (computed based on PDFium availability)
+        hash<string, string> childMap;
     }
 
     constructor(*hash<auto> opts) {
         self.opts = opts;
+        # Start with base child map
+        childMap = BaseChildMap;
+        # Add render provider only if PDFium is available
+        if (PdfRenderer::isAvailable()) {
+            childMap{"render"} = "PdfDataProvider::PdfRenderDataProvider";
+        }
     }
 
     string getName() {
@@ -56,12 +73,16 @@ public class PdfDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProvider getChildProviderImpl(string name) {
-        *string cls_name = ChildMap{name};
+        *string cls_name = childMap{name};
         if (!cls_name) {
             return NOTHING;
         }
         Class cls = Class::forName(cls_name);
         return cls.newObject(opts);
+    }
+
+    private *list<string> getChildProviderNamesImpl() {
+        return childMap.keys();
     }
 }
 }

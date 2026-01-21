@@ -66,11 +66,12 @@ public class PdfDocumentInfoDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "input_path is required";
         }
 
-        PdfReader reader(request.input_path, request.password);
+        PdfDocument doc(request.input_path, request.password);
 
         hash<PdfDocumentInfoResponse> response();
-        response.page_count = reader.pageCount();
-        response.metadata = reader.metadata();
+        response.page_count = doc.pageCount();
+        response.metadata = doc.metadata();
+        response.warnings = doc.getWarnings();
 
         return response;
     }

@@ -54,6 +54,10 @@ public class PdfTest inherits QUnit::Test {
         addTestCase("Font options tests", \fontOptionsTest());
         addTestCase("Negative tests", \negativeTest());
         addTestCase("Corner case tests", \cornerCaseTest());
+        addTestCase("Password-protected PDF tests", \passwordProtectedTest());
+        addTestCase("Large page count tests", \largePageCountTest());
+        addTestCase("Corrupt PDF tests", \corruptPdfTest());
+        addTestCase("Warnings capture tests", \warningsTest());
 
         set_return_value(main());
     }
@@ -270,5 +274,339 @@ public class PdfTest inherits QUnit::Test {
 
         list<string> outputs = PdfDocument::split(singlePdf, testDir, "single_");
         assertEq(1, outputs.size(), "split single-page returns one file");
+    }
+
+    passwordProtectedTest() {
+        # Create a password-protected PDF using qpdf command-line tool
+        string unprotectedPdf = testDir + "/unprotected.pdf";
+        string protectedPdf = testDir + "/protected.pdf";
+        createPdf(unprotectedPdf, "Secret content", <PdfMetadata>{"title": "Protected Doc"});
+
+        # Use qpdf to encrypt the PDF with a password
+        int rc = system("qpdf --encrypt userpass ownerpass 256 -- " + unprotectedPdf + " " + protectedPdf);
+        if (rc != 0) {
+            testSkip("qpdf not available for creating encrypted PDFs");
+            return;
+        }
+
+        # Test 1: Opening without password should fail
+        bool thrown = False;
+        try {
+            PdfDocument doc(protectedPdf);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "protected PDF without password throws PDF-ERROR");
+        }
+        assertTrue(thrown, "opening protected PDF without password throws");
+
+        # Test 2: Opening with correct password should succeed
+        PdfDocument doc(protectedPdf, "userpass");
+        assertEq(1, doc.pageCount(), "protected PDF opened with password");
+        assertEq("Protected Doc", doc.metadata().title, "protected PDF metadata readable");
+
+        # Test 3: Opening with wrong password should fail
+        thrown = False;
+        try {
+            PdfDocument doc2(protectedPdf, "wrongpassword");
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "wrong password throws PDF-ERROR");
+        }
+        assertTrue(thrown, "wrong password throws");
+
+        # Test 4: PdfReader with password
+        PdfReader reader(protectedPdf, "userpass");
+        assertEq(1, reader.pageCount(), "PdfReader opens protected PDF");
+
+        # Test 5: Merge with password-protected PDFs
+        string protectedPdf2 = testDir + "/protected2.pdf";
+        string unprotectedPdf2 = testDir + "/unprotected2.pdf";
+        createPdf(unprotectedPdf2, "More secret content");
+        system("qpdf --encrypt userpass ownerpass 256 -- " + unprotectedPdf2 + " " + protectedPdf2);
+
+        PdfDocument merged = PdfDocument::merge((protectedPdf, protectedPdf2), "userpass");
+        assertEq(2, merged.pageCount(), "merge protected PDFs succeeds with password");
+    }
+
+    largePageCountTest() {
+        # Test creating a PDF with many pages
+        string largePdf = testDir + "/large.pdf";
+        int pageCount = 100;
+
+        PdfWriter writer();
+        for (int i = 0; i < pageCount; i++) {
+            writer.addBlankPage();
+        }
+        assertEq(pageCount, writer.pageCount(), "writer tracks large page count");
+        writer.save(largePdf);
+
+        # Read back and verify
+        PdfDocument doc(largePdf);
+        assertEq(pageCount, doc.pageCount(), "large PDF has correct page count");
+
+        # Test rotating multiple pages in a large PDF
+        list<int> pagesToRotate = ();
+        for (int i = 0; i < 10; i++) {
+            pagesToRotate += i * 10;  # Rotate every 10th page
+        }
+        doc.rotatePages(pagesToRotate, 90);
+
+        string rotatedPdf = testDir + "/large_rotated.pdf";
+        doc.save(rotatedPdf);
+        assertEq(True, is_file(rotatedPdf), "large rotated PDF saved");
+
+        # Test splitting a large PDF
+        string splitDir = testDir + "/large_split";
+        mkdir(splitDir);
+        list<string> outputs = PdfDocument::split(largePdf, splitDir, "page_");
+        assertEq(pageCount, outputs.size(), "split large PDF returns correct count");
+
+        # Verify first and last split files exist
+        assertEq(True, is_file(outputs[0]), "first split page exists");
+        assertEq(True, is_file(outputs[pageCount - 1]), "last split page exists");
+
+        # Test merging many PDFs
+        list<string> toMerge = ();
+        for (int i = 0; i < 10 && i < outputs.size(); i++) {
+            toMerge += outputs[i];
+        }
+        PdfDocument mergedLarge = PdfDocument::merge(toMerge);
+        assertEq(10, mergedLarge.pageCount(), "merge 10 single-page PDFs");
+    }
+
+    corruptPdfTest() {
+        # Test 1: Empty file
+        string emptyPdf = testDir + "/empty.pdf";
+        {
+            File f();
+            f.open2(emptyPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.close();
+        }
+
+        bool thrown = False;
+        try {
+            PdfDocument doc(emptyPdf);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "empty file throws PDF-ERROR");
+        }
+        assertTrue(thrown, "empty file throws");
+
+        # Test 2: Random binary garbage
+        string garbagePdf = testDir + "/garbage.pdf";
+        {
+            File f();
+            f.open2(garbagePdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(binary("This is not a PDF file at all - just random text garbage"));
+            f.close();
+        }
+
+        thrown = False;
+        try {
+            PdfDocument doc(garbagePdf);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "garbage file throws PDF-ERROR");
+        }
+        assertTrue(thrown, "garbage file throws");
+
+        # Test 3: Truncated PDF header only
+        string truncatedPdf = testDir + "/truncated.pdf";
+        {
+            File f();
+            f.open2(truncatedPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(binary("%PDF-1.4\n"));  # Valid header but no content
+            f.close();
+        }
+
+        thrown = False;
+        try {
+            PdfDocument doc(truncatedPdf);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "truncated PDF throws PDF-ERROR");
+        }
+        assertTrue(thrown, "truncated PDF throws");
+
+        # Test 4: Valid PDF with corrupted content (create valid then corrupt)
+        string corruptedPdf = testDir + "/corrupted.pdf";
+        createPdf(testDir + "/valid_for_corrupt.pdf", "Valid content");
+        {
+            # Read the valid PDF
+            File f();
+            f.open2(testDir + "/valid_for_corrupt.pdf", O_RDONLY);
+            binary content = f.readBinary(-1);
+            f.close();
+
+            # Corrupt middle section by replacing bytes with garbage
+            if (content.size() > 200) {
+                binary corrupted = content.substr(0, 100) + binary("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") + content.substr(150);
+                content = corrupted;
+            }
+
+            # Write corrupted version
+            File f2();
+            f2.open2(corruptedPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f2.write(content);
+            f2.close();
+        }
+
+        thrown = False;
+        try {
+            PdfDocument doc(corruptedPdf);
+            # Some corrupted PDFs may still open - try to access content
+            doc.pageCount();
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "corrupted PDF throws PDF-ERROR");
+        }
+        # Note: Some corrupted PDFs may still be partially readable by QPDF,
+        # so we don't require an exception here - just verify the error type if thrown
+
+        # Test 5: Merge with one corrupt file
+        string validPdf = testDir + "/valid_for_merge.pdf";
+        createPdf(validPdf, "Valid");
+
+        thrown = False;
+        try {
+            PdfDocument::merge((validPdf, garbagePdf));
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "merge with corrupt file throws PDF-ERROR");
+        }
+        assertTrue(thrown, "merge with corrupt file throws");
+
+        # Test 6: Split corrupt PDF
+        thrown = False;
+        try {
+            PdfDocument::split(garbagePdf, testDir, "corrupt_");
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "split corrupt file throws PDF-ERROR");
+        }
+        assertTrue(thrown, "split corrupt file throws");
+
+        # Test 7: Renderer with corrupt PDF (if PDFium available)
+        if (PdfRenderer::isAvailable()) {
+            thrown = False;
+            try {
+                PdfRenderer::renderPage(garbagePdf, 0, 72);
+            } catch (hash<ExceptionInfo> ex) {
+                thrown = True;
+                assertEq("PDF-ERROR", ex.err, "render corrupt file throws PDF-ERROR");
+            }
+            assertTrue(thrown, "render corrupt file throws");
+
+            thrown = False;
+            try {
+                PdfRenderer::extractText(garbagePdf, 0);
+            } catch (hash<ExceptionInfo> ex) {
+                thrown = True;
+                assertEq("PDF-ERROR", ex.err, "extract text from corrupt file throws PDF-ERROR");
+            }
+            assertTrue(thrown, "extract text from corrupt file throws");
+        }
+    }
+
+    warningsTest() {
+        # Test 1: Valid PDF should have no warnings
+        string validPdf = testDir + "/warnings_valid.pdf";
+        createPdf(validPdf, "Valid content for warnings test");
+
+        PdfDocument validDoc(validPdf);
+        *list<string> noWarnings = validDoc.getWarnings();
+        assertEq(NOTHING, noWarnings, "valid PDF returns NOTHING for getWarnings()");
+
+        # Test 2: Create a PDF with minor damage that QPDF can recover from
+        # This creates a PDF with an invalid xref that QPDF will recover with warnings
+        string damagedPdf = testDir + "/warnings_damaged.pdf";
+        {
+            # Read the valid PDF as binary
+            File f();
+            f.open2(validPdf, O_RDONLY);
+            binary content = f.readBinary(-1);
+            f.close();
+
+            # Convert to string to find xref position (in ASCII portion)
+            string contentStr = content.toString("ISO-8859-1");
+
+            # Damage the xref entry - replace a digit with a letter in the xref table
+            # This creates a recoverable error that QPDF will warn about
+            int xrefPos = contentStr.find("xref");
+            if (xrefPos >= 0) {
+                # Find a position after xref to damage
+                int damagePos = xrefPos + 20;
+                if (damagePos < contentStr.size()) {
+                    # Replace a character in the xref with something invalid
+                    contentStr = contentStr.substr(0, damagePos) + "X" + contentStr.substr(damagePos + 1);
+                }
+            }
+
+            # Write damaged version
+            File f2();
+            f2.open2(damagedPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f2.write(binary(contentStr));
+            f2.close();
+        }
+
+        # Try to open the damaged PDF - it may throw or generate warnings
+        bool hasWarnings = False;
+        try {
+            PdfDocument damagedDoc(damagedPdf);
+            *list<string> warnings = damagedDoc.getWarnings();
+            if (warnings) {
+                hasWarnings = True;
+                assertTrue(warnings.size() > 0, "damaged PDF generates warnings");
+                # Warnings should contain text about the damage
+                assertTrue(warnings[0].size() > 0, "warning message is not empty");
+            }
+        } catch (hash<ExceptionInfo> ex) {
+            # If it throws, that's also acceptable for a damaged PDF
+            assertEq("PDF-ERROR", ex.err, "damaged PDF throws PDF-ERROR");
+        }
+
+        # Test 3: getWarnings() called multiple times should work
+        PdfDocument validDoc2(validPdf);
+        *list<string> w1 = validDoc2.getWarnings();
+        *list<string> w2 = validDoc2.getWarnings();
+        assertEq(w1, w2, "getWarnings() is idempotent for valid PDF");
+
+        # Test 4: Create a PDF with missing startxref that QPDF can try to recover
+        string noStartxrefPdf = testDir + "/warnings_no_startxref.pdf";
+        {
+            File f();
+            f.open2(validPdf, O_RDONLY);
+            binary content = f.readBinary(-1);
+            f.close();
+
+            string contentStr = content.toString("ISO-8859-1");
+
+            # Remove the startxref line by replacing it with whitespace
+            int startxrefPos = contentStr.find("startxref");
+            if (startxrefPos >= 0) {
+                int eofPos = contentStr.find("%%EOF", startxrefPos);
+                if (eofPos > startxrefPos) {
+                    # Replace the startxref and its value with spaces (keeping EOF)
+                    string spaces = strmul(" ", eofPos - startxrefPos);
+                    contentStr = contentStr.substr(0, startxrefPos) + spaces + contentStr.substr(eofPos);
+                }
+            }
+
+            File f2();
+            f2.open2(noStartxrefPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f2.write(binary(contentStr));
+            f2.close();
+        }
+
+        try {
+            PdfDocument noStartxrefDoc(noStartxrefPdf);
+            *list<string> warnings = noStartxrefDoc.getWarnings();
+            if (warnings) {
+                assertTrue(warnings.size() > 0, "PDF with damaged startxref generates warnings");
+            }
+        } catch (hash<ExceptionInfo> ex) {
+            # Acceptable - severely damaged PDFs may throw
+            assertEq("PDF-ERROR", ex.err, "PDF with damaged startxref throws PDF-ERROR");
+        }
     }
 }

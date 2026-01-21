@@ -118,6 +118,21 @@ nothing PdfDocument::save(string path) [dom=FILESYSTEM] {
     doc->save(path->c_str(), xsink);
 }
 
+//! Returns any warnings encountered while processing the document
+/** Returns a list of warning messages encountered during document loading or operations.
+    @return a list of warning strings, or NOTHING if no warnings
+*/
+*list<string> PdfDocument::getWarnings() {
+    QoreListNode* warnings = doc->getWarnings(xsink);
+    if (warnings && warnings->size() > 0) {
+        return warnings;
+    }
+    if (warnings) {
+        warnings->deref(xsink);
+    }
+    return QoreValue();
+}
+
 //! Rotates specific pages by a multiple of 90 degrees
 /** @param pages list of zero-based page indices
     @param degrees rotation in degrees (must be multiple of 90)

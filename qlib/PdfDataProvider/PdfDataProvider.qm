@@ -115,25 +115,28 @@ module PdfDataProvider {
             "action_code": DPAT_API,
         });
 
-        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
-            "app": PdfDataProvider::AppName,
-            "path": "/render/page",
-            "action": "render-page",
-            "display_name": "Render Page",
-            "short_desc": "Render a PDF page",
-            "desc": "Render a PDF page to a raw bitmap using PDFium",
-            "action_code": DPAT_API,
-        });
+        # Register render actions only if PDFium is available
+        if (PdfRenderer::isAvailable()) {
+            DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+                "app": PdfDataProvider::AppName,
+                "path": "/render/page",
+                "action": "render-page",
+                "display_name": "Render Page",
+                "short_desc": "Render a PDF page",
+                "desc": "Render a PDF page to a raw bitmap using PDFium",
+                "action_code": DPAT_API,
+            });
 
-        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
-            "app": PdfDataProvider::AppName,
-            "path": "/render/extract-text",
-            "action": "extract-text",
-            "display_name": "Extract Text",
-            "short_desc": "Extract page text",
-            "desc": "Extract text from a single PDF page using PDFium",
-            "action_code": DPAT_API,
-        });
+            DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+                "app": PdfDataProvider::AppName,
+                "path": "/render/extract-text",
+                "action": "extract-text",
+                "display_name": "Extract Text",
+                "short_desc": "Extract page text",
+                "desc": "Extract text from a single PDF page using PDFium",
+                "action_code": DPAT_API,
+            });
+        }
     };
 }
 
@@ -147,10 +150,10 @@ module PdfDataProvider {
     operations through the Qore DataProvider API.
 
     Key classes:
-    - @ref PdfDataProvider::PdfDataProviderFactory "PdfDataProviderFactory"
-    - @ref PdfDataProvider::PdfDataProvider "PdfDataProvider"
-    - @ref PdfDataProvider::PdfDocumentDataProvider "PdfDocumentDataProvider"
-    - @ref PdfDataProvider::PdfRenderDataProvider "PdfRenderDataProvider"
+    - @ref PdfDataProvider::PdfDataProviderFactory "PdfDataProviderFactory" - Factory for creating PDF data providers
+    - @ref PdfDataProvider::PdfDataProvider "PdfDataProvider" - Root data provider
+    - @ref PdfDataProvider::PdfDocumentDataProvider "PdfDocumentDataProvider" - Document manipulation operations
+    - @ref PdfDataProvider::PdfRenderDataProvider "PdfRenderDataProvider" - Rendering and text extraction operations (requires PDFium)
 
     @section pdfdp_factory Factory Name
 

@@ -78,6 +78,7 @@ public class PdfMergeDocumentDataProvider inherits AbstractDataProvider {
         response.output_path = request.output_path;
         response.page_count = merged.pageCount();
         response.size = hstat(request.output_path).size;
+        response.warnings = merged.getWarnings();
 
         return response;
     }

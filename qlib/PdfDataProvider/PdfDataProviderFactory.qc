@@ -1,5 +1,5 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfDataProviderFactory class definition
+#! @file PdfDataProviderFactory.qc provides the PdfDataProviderFactory class definition
 
 /** PdfDataProviderFactory.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
@@ -24,7 +24,13 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! PdfDataProvider factory class
+/** @brief Factory class for creating PDF data providers
+
+    This class provides the factory for creating @ref PdfDataProvider "PdfDataProvider" instances.
+
+    @par Factory Name
+    The factory string for DataProvider::getFactoryEx() is: "pdf"
+*/
 public class PdfDataProviderFactory inherits AbstractDataProviderFactory {
     public {
         #! Factory info

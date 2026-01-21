@@ -35,6 +35,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 class QorePdfDocument : public AbstractPrivateData {
 public:
@@ -47,10 +48,20 @@ public:
     void save(const std::string& path, ExceptionSink* xsink);
     void rotatePages(const QoreListNode* pages, int degrees, ExceptionSink* xsink);
 
+    //! Returns any warnings generated during document operations
+    QoreListNode* getWarnings(ExceptionSink* xsink);
+
     static QorePdfDocument* merge(const QoreListNode* inputs, const std::string& password,
             ExceptionSink* xsink);
+    static QorePdfDocument* mergeWithWarnings(const QoreListNode* inputs, const std::string& password,
+            QoreListNode*& warnings, ExceptionSink* xsink);
     static QoreListNode* split(const std::string& input, const std::string& output_dir,
             const std::string& prefix, ExceptionSink* xsink);
+    static QoreListNode* splitWithWarnings(const std::string& input, const std::string& output_dir,
+            const std::string& prefix, QoreListNode*& warnings, ExceptionSink* xsink);
+
+    //! Helper to convert QPDF warnings to a Qore list
+    static QoreListNode* collectWarnings(QPDF& qpdf);
 
 private:
     std::unique_ptr<QPDF> qpdf;

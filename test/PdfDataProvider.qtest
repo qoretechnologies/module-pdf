@@ -59,6 +59,9 @@ public class PdfDataProviderTest inherits QUnit::Test {
         addTestCase("Extract text action tests", \extractTextActionTest());
         addTestCase("Negative action tests", \negativeActionTest());
         addTestCase("Corner case tests", \cornerCaseTest());
+        addTestCase("Password-protected PDF action tests", \passwordProtectedActionTest());
+        addTestCase("Large page count action tests", \largePageCountActionTest());
+        addTestCase("Corrupt PDF action tests", \corruptPdfActionTest());
 
         set_return_value(main());
     }
@@ -144,10 +147,17 @@ public class PdfDataProviderTest inherits QUnit::Test {
         assertEq("/document/split", actions{"split-document"}.path, "split path matches");
         assertEq(True, exists actions{"rotate-pages"}, "rotate-pages action exists");
         assertEq("/document/rotate", actions{"rotate-pages"}.path, "rotate path matches");
-        assertEq(True, exists actions{"render-page"}, "render-page action exists");
-        assertEq("/render/page", actions{"render-page"}.path, "render path matches");
-        assertEq(True, exists actions{"extract-text"}, "extract-text action exists");
-        assertEq("/render/extract-text", actions{"extract-text"}.path, "extract path matches");
+
+        # Render actions are only available when PDFium is available
+        if (PdfRenderer::isAvailable()) {
+            assertEq(True, exists actions{"render-page"}, "render-page action exists");
+            assertEq("/render/page", actions{"render-page"}.path, "render path matches");
+            assertEq(True, exists actions{"extract-text"}, "extract-text action exists");
+            assertEq("/render/extract-text", actions{"extract-text"}.path, "extract path matches");
+        } else {
+            assertEq(False, exists actions{"render-page"}, "render-page action not available without PDFium");
+            assertEq(False, exists actions{"extract-text"}, "extract-text action not available without PDFium");
+        }
     }
 
     # ==================== Create Document Action Tests ====================
@@ -301,20 +311,15 @@ public class PdfDataProviderTest inherits QUnit::Test {
     # ==================== Render Page Action Tests ====================
 
     renderPageActionTest() {
+        if (!PdfRenderer::isAvailable()) {
+            testSkip("PDFium not available");
+            return;
+        }
+
         string input_path = testDir + "/render_input.pdf";
         createPdf(input_path, "Render action");
 
         AbstractDataProvider dp = getRenderProvider("page");
-        if (!PdfRenderer::isAvailable()) {
-            assertPdfError("render fails when PDFium missing", sub () {
-                dp.doRequest({
-                    "input_path": input_path,
-                    "page_index": 0,
-                    "dpi": 72,
-                });
-            });
-            return;
-        }
 
         hash<auto> response = dp.doRequest({
             "input_path": input_path,
@@ -342,19 +347,15 @@ public class PdfDataProviderTest inherits QUnit::Test {
     # ==================== Extract Text Action Tests ====================
 
     extractTextActionTest() {
+        if (!PdfRenderer::isAvailable()) {
+            testSkip("PDFium not available");
+            return;
+        }
+
         string input_path = testDir + "/extract_input.pdf";
         createPdf(input_path, "Extract action text");
 
         AbstractDataProvider dp = getRenderProvider("extract-text");
-        if (!PdfRenderer::isAvailable()) {
-            assertPdfError("extract fails when PDFium missing", sub () {
-                dp.doRequest({
-                    "input_path": input_path,
-                    "page_index": 0,
-                });
-            });
-            return;
-        }
 
         hash<auto> response = dp.doRequest({
             "input_path": input_path,
@@ -460,5 +461,280 @@ public class PdfDataProviderTest inherits QUnit::Test {
         });
         assertEq(1, split_response.count, "split single-page returns one output");
         assertEq(True, is_file(split_response.outputs[0]), "split single-page output exists");
+    }
+
+    # ==================== Password-Protected PDF Action Tests ====================
+
+    passwordProtectedActionTest() {
+        # Create a password-protected PDF using qpdf command-line tool
+        string unprotectedPdf = testDir + "/dp_unprotected.pdf";
+        string protectedPdf = testDir + "/dp_protected.pdf";
+        createPdf(unprotectedPdf, "Secret content", <PdfMetadata>{"title": "Protected DP Doc"});
+
+        # Use qpdf to encrypt the PDF with a password
+        int rc = system("qpdf --encrypt userpass ownerpass 256 -- " + unprotectedPdf + " " + protectedPdf);
+        if (rc != 0) {
+            testSkip("qpdf not available for creating encrypted PDFs");
+            return;
+        }
+
+        # Test 1: Document info without password should fail
+        AbstractDataProvider info_dp = getDocumentProvider("info");
+        assertPdfError("info without password throws PDF-ERROR", sub () {
+            info_dp.doRequest({
+                "input_path": protectedPdf,
+            });
+        });
+
+        # Test 2: Document info with correct password should succeed
+        hash<auto> info_response = info_dp.doRequest({
+            "input_path": protectedPdf,
+            "password": "userpass",
+        });
+        assertEq(1, info_response.page_count, "protected PDF info page count");
+        assertEq("Protected DP Doc", info_response.metadata.title, "protected PDF metadata via data provider");
+
+        # Test 3: Set metadata with password
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        string output_path = testDir + "/dp_protected_updated.pdf";
+        hash<auto> meta_response = metadata_dp.doRequest({
+            "input_path": protectedPdf,
+            "output_path": output_path,
+            "metadata": <PdfMetadata>{"title": "Updated Protected"},
+            "password": "userpass",
+        });
+        assertEq(True, meta_response.success, "metadata update with password succeeded");
+
+        # Verify the updated file exists and can be read
+        # Note: QPDF preserves encryption, so we use info data provider which supports password
+        assertEq(True, is_file(output_path), "metadata output file exists");
+        hash<auto> verify_response = info_dp.doRequest({
+            "input_path": output_path,
+            "password": "userpass",
+        });
+        assertEq("Updated Protected", verify_response.metadata.title, "metadata updated in protected PDF");
+
+        # Test 4: Merge with password-protected PDFs
+        string protectedPdf2 = testDir + "/dp_protected2.pdf";
+        string unprotectedPdf2 = testDir + "/dp_unprotected2.pdf";
+        createPdf(unprotectedPdf2, "More secret content");
+        system("qpdf --encrypt userpass ownerpass 256 -- " + unprotectedPdf2 + " " + protectedPdf2);
+
+        AbstractDataProvider merge_dp = getDocumentProvider("merge");
+        string merged_path = testDir + "/dp_merged_protected.pdf";
+        hash<auto> merge_response = merge_dp.doRequest({
+            "inputs": (protectedPdf, protectedPdf2),
+            "output_path": merged_path,
+            "password": "userpass",
+        });
+        assertEq(True, merge_response.success, "merge protected PDFs via data provider");
+        assertEq(2, merge_response.page_count, "merged protected PDF page count");
+
+        # Test 5: Rotate pages with password
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        string rotated_path = testDir + "/dp_rotated_protected.pdf";
+        hash<auto> rotate_response = rotate_dp.doRequest({
+            "input_path": protectedPdf,
+            "output_path": rotated_path,
+            "pages": (0,),
+            "degrees": 90,
+            "password": "userpass",
+        });
+        assertEq(True, rotate_response.success, "rotate protected PDF via data provider");
+    }
+
+    # ==================== Large Page Count Action Tests ====================
+
+    largePageCountActionTest() {
+        int pageCount = 50;
+
+        # Test 1: Create a large PDF via data provider
+        AbstractDataProvider create_dp = getDocumentProvider("create");
+        string large_path = testDir + "/dp_large.pdf";
+        hash<auto> create_response = create_dp.doRequest({
+            "output_path": large_path,
+            "page_count": pageCount,
+        });
+        assertEq(True, create_response.success, "create large PDF succeeded");
+        assertEq(pageCount, create_response.page_count, "large PDF page count matches");
+        assertTrue(create_response.size > 0, "large PDF has positive size");
+
+        # Test 2: Get info on large PDF
+        AbstractDataProvider info_dp = getDocumentProvider("info");
+        hash<auto> info_response = info_dp.doRequest({
+            "input_path": large_path,
+        });
+        assertEq(pageCount, info_response.page_count, "large PDF info page count");
+
+        # Test 3: Split large PDF
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        string split_dir = testDir + "/dp_large_split";
+        mkdir(split_dir);
+        hash<auto> split_response = split_dp.doRequest({
+            "input_path": large_path,
+            "output_dir": split_dir,
+            "prefix": "large_",
+        });
+        assertEq(pageCount, split_response.count, "split large PDF count");
+        assertEq(pageCount, split_response.outputs.size(), "split large PDF outputs size");
+
+        # Test 4: Merge many single-page PDFs back together
+        list<string> toMerge = ();
+        for (int i = 0; i < 20 && i < split_response.outputs.size(); i++) {
+            toMerge += split_response.outputs[i];
+        }
+
+        AbstractDataProvider merge_dp = getDocumentProvider("merge");
+        string remerged_path = testDir + "/dp_remerged.pdf";
+        hash<auto> merge_response = merge_dp.doRequest({
+            "inputs": toMerge,
+            "output_path": remerged_path,
+        });
+        assertEq(True, merge_response.success, "remerge many PDFs succeeded");
+        assertEq(20, merge_response.page_count, "remerged PDF has 20 pages");
+
+        # Test 5: Rotate multiple pages in large PDF
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        list<int> pagesToRotate = (0, 10, 20, 30, 40);
+        string rotated_path = testDir + "/dp_large_rotated.pdf";
+        hash<auto> rotate_response = rotate_dp.doRequest({
+            "input_path": large_path,
+            "output_path": rotated_path,
+            "pages": pagesToRotate,
+            "degrees": 180,
+        });
+        assertEq(True, rotate_response.success, "rotate multiple pages succeeded");
+        assertEq(pageCount, rotate_response.page_count, "rotated PDF keeps page count");
+
+        # Test 6: Create PDF with many individual page specs
+        list<hash<PdfCreatePageSpec>> pages = ();
+        for (int i = 0; i < 10; i++) {
+            pages += <PdfCreatePageSpec>{
+                "type": i % 2 == 0 ? "blank" : "text",
+                "text": "Page " + string(i + 1),
+                "width": 612.0,
+                "height": 792.0,
+            };
+        }
+        string pages_path = testDir + "/dp_pages_list.pdf";
+        hash<auto> pages_response = create_dp.doRequest({
+            "output_path": pages_path,
+            "pages": pages,
+        });
+        assertEq(True, pages_response.success, "create with page specs succeeded");
+        assertEq(10, pages_response.page_count, "page specs count matches");
+    }
+
+    # ==================== Corrupt PDF Action Tests ====================
+
+    corruptPdfActionTest() {
+        # Test 1: Empty file
+        string emptyPdf = testDir + "/dp_empty.pdf";
+        {
+            File f();
+            f.open2(emptyPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.close();
+        }
+
+        AbstractDataProvider info_dp = getDocumentProvider("info");
+        assertPdfError("info on empty file throws PDF-ERROR", sub () {
+            info_dp.doRequest({
+                "input_path": emptyPdf,
+            });
+        });
+
+        # Test 2: Garbage file
+        string garbagePdf = testDir + "/dp_garbage.pdf";
+        {
+            File f();
+            f.open2(garbagePdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(binary("This is not a PDF file at all - just garbage data for testing"));
+            f.close();
+        }
+
+        assertPdfError("info on garbage file throws PDF-ERROR", sub () {
+            info_dp.doRequest({
+                "input_path": garbagePdf,
+            });
+        });
+
+        # Test 3: Merge with corrupt file
+        string validPdf = testDir + "/dp_valid_for_corrupt.pdf";
+        createPdf(validPdf, "Valid content");
+
+        AbstractDataProvider merge_dp = getDocumentProvider("merge");
+        assertPdfError("merge with corrupt file throws PDF-ERROR", sub () {
+            merge_dp.doRequest({
+                "inputs": (validPdf, garbagePdf),
+                "output_path": testDir + "/dp_merge_corrupt.pdf",
+            });
+        });
+
+        # Test 4: Split corrupt file
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        string split_dir = testDir + "/dp_corrupt_split";
+        mkdir(split_dir);
+        assertPdfError("split corrupt file throws PDF-ERROR", sub () {
+            split_dp.doRequest({
+                "input_path": garbagePdf,
+                "output_dir": split_dir,
+            });
+        });
+
+        # Test 5: Rotate corrupt file
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        assertPdfError("rotate corrupt file throws PDF-ERROR", sub () {
+            rotate_dp.doRequest({
+                "input_path": garbagePdf,
+                "output_path": testDir + "/dp_rotate_corrupt.pdf",
+                "pages": (0,),
+                "degrees": 90,
+            });
+        });
+
+        # Test 6: Set metadata on corrupt file
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        assertPdfError("metadata on corrupt file throws PDF-ERROR", sub () {
+            metadata_dp.doRequest({
+                "input_path": garbagePdf,
+                "output_path": testDir + "/dp_meta_corrupt.pdf",
+                "metadata": <PdfMetadata>{"title": "Bad"},
+            });
+        });
+
+        # Test 7: Renderer actions with corrupt file (if PDFium available)
+        if (PdfRenderer::isAvailable()) {
+            AbstractDataProvider render_dp = getRenderProvider("page");
+            assertPdfError("render corrupt file throws PDF-ERROR", sub () {
+                render_dp.doRequest({
+                    "input_path": garbagePdf,
+                    "page_index": 0,
+                    "dpi": 72,
+                });
+            });
+
+            AbstractDataProvider extract_dp = getRenderProvider("extract-text");
+            assertPdfError("extract text from corrupt file throws PDF-ERROR", sub () {
+                extract_dp.doRequest({
+                    "input_path": garbagePdf,
+                    "page_index": 0,
+                });
+            });
+        }
+
+        # Test 8: Truncated PDF
+        string truncatedPdf = testDir + "/dp_truncated.pdf";
+        {
+            File f();
+            f.open2(truncatedPdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(binary("%PDF-1.4\n%EOF\n"));
+            f.close();
+        }
+
+        assertPdfError("info on truncated PDF throws PDF-ERROR", sub () {
+            info_dp.doRequest({
+                "input_path": truncatedPdf,
+            });
+        });
     }
 }

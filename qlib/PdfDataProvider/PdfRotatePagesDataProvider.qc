@@ -87,6 +87,7 @@ public class PdfRotatePagesDataProvider inherits AbstractDataProvider {
         response.success = True;
         response.output_path = output_path;
         response.page_count = doc.pageCount();
+        response.warnings = doc.getWarnings();
 
         return response;
     }

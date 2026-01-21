@@ -88,6 +88,9 @@ public hashdecl PdfDocumentInfoResponse {
 
     #! Document metadata
     hash<Qore::Pdf::PdfMetadata> metadata;
+
+    #! Warnings encountered while reading the document
+    *list<string> warnings;
 }
 
 #! Request type for setting metadata
@@ -118,6 +121,9 @@ public hashdecl PdfSetMetadataResponse {
 
     #! Number of pages
     int page_count;
+
+    #! Warnings encountered while processing the document
+    *list<string> warnings;
 }
 
 #! Request type for merging documents
@@ -145,6 +151,9 @@ public hashdecl PdfMergeDocumentResponse {
 
     #! Output file size in bytes
     int size;
+
+    #! Warnings encountered while processing input documents
+    *list<string> warnings;
 }
 
 #! Request type for splitting a document
@@ -166,6 +175,9 @@ public hashdecl PdfSplitDocumentResponse {
 
     #! Number of pages written
     int count;
+
+    #! Warnings encountered while processing the document
+    *list<string> warnings;
 }
 
 #! Request type for rotating pages
@@ -199,6 +211,9 @@ public hashdecl PdfRotatePagesResponse {
 
     #! Number of pages
     int page_count;
+
+    #! Warnings encountered while processing the document
+    *list<string> warnings;
 }
 
 #! Request type for rendering a page

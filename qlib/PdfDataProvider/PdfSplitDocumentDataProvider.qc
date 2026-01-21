@@ -70,6 +70,9 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "output_dir is required";
         }
 
+        # Load document first to capture warnings
+        PdfDocument doc(request.input_path);
+
         *string prefix = request.prefix;
         list<string> outputs = PdfDocument::split(request.input_path, request.output_dir,
             prefix ? prefix : "page_");
@@ -77,6 +80,7 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
         hash<PdfSplitDocumentResponse> response();
         response.outputs = outputs;
         response.count = outputs.size();
+        response.warnings = doc.getWarnings();
 
         return response;
     }

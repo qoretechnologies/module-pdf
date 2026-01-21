@@ -27,15 +27,26 @@
 #include "pdf-module.h"
 
 #include <qpdf/QPDFObjectHandle.hh>
+#include <qpdf/QPDFExc.hh>
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
     xsink->raiseException("PDF-ERROR", msg);
+}
+
+QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
+    QoreListNode* warnings = new QoreListNode();
+    std::vector<QPDFExc> qpdf_warnings = qpdf.getWarnings();
+    for (const auto& w : qpdf_warnings) {
+        warnings->push(new QoreStringNode(w.what()), nullptr);
+    }
+    return warnings;
 }
 
 QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd, ExceptionSink* xsink)
         : password(pwd) {
     try {
         qpdf = std::make_unique<QPDF>();
+        qpdf->setSuppressWarnings(true);
         qpdf->processFile(path.c_str(), pwd.empty() ? nullptr : pwd.c_str());
         has_doc = true;
     } catch (const std::exception& e) {
@@ -213,7 +224,60 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
             }
             const QoreStringNode* path = val.get<const QoreStringNode>();
             QPDF in_qpdf;
+            in_qpdf.setSuppressWarnings(true);
             in_qpdf.processFile(path->c_str(), pwd.empty() ? nullptr : pwd.c_str());
+            QPDFPageDocumentHelper in_pdh(in_qpdf);
+            for (auto& page : in_pdh.getAllPages()) {
+                out_pdh.addPage(page, false);
+            }
+        }
+
+        return new QorePdfDocument(std::move(out_qpdf));
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+        return nullptr;
+    }
+}
+
+QoreListNode* QorePdfDocument::getWarnings(ExceptionSink* xsink) {
+    if (!has_doc || !qpdf) {
+        return new QoreListNode();
+    }
+    return collectWarnings(*qpdf);
+}
+
+QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, const std::string& pwd,
+        QoreListNode*& warnings, ExceptionSink* xsink) {
+    if (!inputs || inputs->size() == 0) {
+        pdf_error(xsink, "Input list cannot be empty");
+        return nullptr;
+    }
+
+    warnings = new QoreListNode();
+
+    try {
+        auto out_qpdf = std::make_unique<QPDF>();
+        out_qpdf->emptyPDF();
+        QPDFPageDocumentHelper out_pdh(*out_qpdf);
+
+        for (size_t i = 0; i < inputs->size(); ++i) {
+            QoreValue val = inputs->retrieveEntry(i);
+            if (val.getType() != NT_STRING) {
+                pdf_error(xsink, "Input list must contain strings");
+                return nullptr;
+            }
+            const QoreStringNode* path = val.get<const QoreStringNode>();
+            QPDF in_qpdf;
+            in_qpdf.setSuppressWarnings(true);
+            in_qpdf.processFile(path->c_str(), pwd.empty() ? nullptr : pwd.c_str());
+
+            // Collect warnings from this input
+            QoreListNode* input_warnings = collectWarnings(in_qpdf);
+            for (size_t j = 0; j < input_warnings->size(); ++j) {
+                warnings->push(input_warnings->retrieveEntry(j).refSelf(), xsink);
+            }
+            input_warnings->deref(xsink);
+
             QPDFPageDocumentHelper in_pdh(in_qpdf);
             for (auto& page : in_pdh.getAllPages()) {
                 out_pdh.addPage(page, false);
@@ -233,7 +297,50 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
 
     try {
         QPDF in_qpdf;
+        in_qpdf.setSuppressWarnings(true);
         in_qpdf.processFile(input.c_str(), nullptr);
+        QPDFPageDocumentHelper pdh(in_qpdf);
+        auto pages = pdh.getAllPages();
+
+        for (size_t i = 0; i < pages.size(); ++i) {
+            QPDF out_qpdf;
+            out_qpdf.emptyPDF();
+            QPDFPageDocumentHelper out_pdh(out_qpdf);
+            out_pdh.addPage(pages[i], false);
+
+            QoreString out_path;
+            out_path.sprintf("%s/%s%zu.pdf", output_dir.c_str(), prefix.c_str(), i + 1);
+
+            QPDFWriter writer(out_qpdf, out_path.c_str());
+            writer.write();
+
+            outputs->push(new QoreStringNode(out_path.c_str()), xsink);
+        }
+
+        return outputs;
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+        return outputs;
+    }
+}
+
+QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const std::string& output_dir,
+        const std::string& prefix, QoreListNode*& warnings, ExceptionSink* xsink) {
+    QoreListNode* outputs = new QoreListNode();
+    warnings = new QoreListNode();
+
+    try {
+        QPDF in_qpdf;
+        in_qpdf.setSuppressWarnings(true);
+        in_qpdf.processFile(input.c_str(), nullptr);
+
+        // Collect warnings from input
+        QoreListNode* input_warnings = collectWarnings(in_qpdf);
+        for (size_t j = 0; j < input_warnings->size(); ++j) {
+            warnings->push(input_warnings->retrieveEntry(j).refSelf(), xsink);
+        }
+        input_warnings->deref(xsink);
+
         QPDFPageDocumentHelper pdh(in_qpdf);
         auto pages = pdh.getAllPages();
 

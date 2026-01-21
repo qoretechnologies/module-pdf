@@ -1,5 +1,5 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfDocumentDataProvider class definition
+#! @file PdfDocumentDataProvider.qc provides the PdfDocumentDataProvider class definition
 
 /** PdfDocumentDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
@@ -24,7 +24,19 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! Document actions provider
+/** @brief Data provider for PDF document manipulation operations
+
+    This provider exposes document manipulation actions:
+    - @b create - Create new PDF documents
+    - @b info - Get document information and metadata
+    - @b metadata - Update document metadata
+    - @b merge - Merge multiple PDFs
+    - @b split - Split a PDF into pages
+    - @b rotate - Rotate pages
+
+    @par Data Provider Path
+    Access via: pdf{}/document/<action>
+*/
 public class PdfDocumentDataProvider inherits AbstractDataProvider {
     public {
         const ProviderInfo = <DataProviderInfo>{
