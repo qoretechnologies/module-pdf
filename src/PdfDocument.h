@@ -68,7 +68,7 @@ private:
     std::string password;
     bool has_doc = false;
 
-    QoreHashNode* buildMetadataHash(const QPDFObjectHandle& info, ExceptionSink* xsink);
+    QoreHashNode* buildMetadataHash(QPDFObjectHandle info, ExceptionSink* xsink);
     void applyMetadata(const QoreHashNode* metadata, QPDFObjectHandle& info, ExceptionSink* xsink);
 };
 

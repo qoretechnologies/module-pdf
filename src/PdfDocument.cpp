@@ -72,7 +72,7 @@ int QorePdfDocument::pageCount(ExceptionSink* xsink) {
     }
 }
 
-QoreHashNode* QorePdfDocument::buildMetadataHash(const QPDFObjectHandle& info, ExceptionSink* xsink) {
+QoreHashNode* QorePdfDocument::buildMetadataHash(QPDFObjectHandle info, ExceptionSink* xsink) {
     QoreHashNode* metadata = new QoreHashNode(hashdeclPdfMetadata, xsink);
     if (!info.isDictionary()) {
         return metadata;
