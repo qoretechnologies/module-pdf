@@ -27,7 +27,7 @@ export MAKE_JOBS=4
 
 # install additional dependencies for testing
 apt-get update
-apt-get install -y qpdf
+apt-get install -y qpdf libqpdf-dev
 
 # build module and install
 echo && echo "-- building module --"

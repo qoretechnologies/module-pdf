@@ -26,7 +26,7 @@ echo "export QORE_GID=1000" >> ${ENV_FILE}
 export MAKE_JOBS=4
 
 # install additional dependencies for testing
-apk add --no-cache qpdf
+apk add --no-cache qpdf qpdf-dev
 
 # build module and install
 echo && echo "-- building module --"
