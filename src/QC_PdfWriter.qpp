@@ -1,0 +1,126 @@
+/* -*- mode: c++; indent-tabs-mode: nil -*- */
+/** @file QC_PdfWriter.cpp defines the %Qore PdfWriter class */
+/*
+    Qore pdf module
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+#include "QC_PdfWriter.h"
+#include "PdfWriter.h"
+
+//! Font options for PDF writing
+/**
+    Controls font embedding and subsetting behavior.
+*/
+hashdecl Qore::Pdf::PdfFontOptions {
+    //! True to embed font data (default)
+    *bool embed;
+
+    //! True to subset embedded fonts (default)
+    *bool subset;
+
+    //! True to prefer non-CID fonts when possible
+    *bool prefer_non_cid;
+}
+
+//! A PDF writer for creating new documents
+/**
+    @since %pdf 1.0
+*/
+qclass PdfWriter [arg=QorePdfWriter* writer; ns=Qore::Pdf];
+
+//! Creates a new PDF writer
+/**
+    Creates an empty in-memory PDF draft.
+*/
+PdfWriter::constructor() {
+    ReferenceHolder<QorePdfWriter> holder(new QorePdfWriter(), xsink);
+    self->setPrivate(CID_PDFWRITER, holder.release());
+}
+
+//! Returns the number of pages in the draft document
+/**
+    @return the number of pages in the draft
+*/
+int PdfWriter::pageCount() {
+    return writer->pageCount();
+}
+
+//! Adds a blank page
+/** @param width page width in points
+    @param height page height in points
+
+    @throw PDF-ERROR if page dimensions are invalid or page creation fails
+*/
+nothing PdfWriter::addBlankPage(float width = 612.0, float height = 792.0) {
+    if (width <= 0.0 || height <= 0.0) {
+        xsink->raiseException("PDF-ERROR", "Page width and height must be positive");
+        return QoreValue();
+    }
+    writer->addBlankPage(width, height, xsink);
+}
+
+//! Adds a page with text
+/** @param text text to draw
+    @param width page width in points
+    @param height page height in points
+
+    @throw PDF-ERROR if page creation or text rendering fails
+*/
+nothing PdfWriter::addTextPage(string text, float width = 612.0, float height = 792.0) {
+    if (width <= 0.0 || height <= 0.0) {
+        xsink->raiseException("PDF-ERROR", "Page width and height must be positive");
+        return QoreValue();
+    }
+    writer->addTextPage(text->c_str(), width, height, xsink);
+}
+
+//! Sets metadata for the document
+/** @param metadata metadata fields to set
+
+    @throw PDF-ERROR if metadata cannot be applied
+*/
+nothing PdfWriter::setMetadata(hash<PdfMetadata> metadata) {
+    writer->setMetadata(metadata, xsink);
+}
+
+//! Sets font embedding and subsetting options
+/** @param opts font options
+
+    @throw PDF-ERROR if options cannot be applied
+*/
+nothing PdfWriter::setFontOptions(hash<PdfFontOptions> opts) {
+    writer->setFontOptions(opts, xsink);
+}
+
+//! Saves the document to a file
+/** @param path output PDF path
+
+    @throw PDF-ERROR if the document cannot be saved
+*/
+nothing PdfWriter::save(string path) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return QoreValue();
+    }
+    writer->save(path->c_str(), xsink);
+}

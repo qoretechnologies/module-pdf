@@ -1,0 +1,274 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore pdf module test suite
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+
+%requires QUnit
+%requires Util
+%requires pdf
+
+%exec-class PdfTest
+
+public class PdfTest inherits QUnit::Test {
+    private {
+        string testDir;
+        string basePdf;
+    }
+
+    constructor() : Test("PdfTest", "1.0") {
+        testDir = tmp_location() + "/pdf_test_" + string(getpid());
+        basePdf = testDir + "/base.pdf";
+
+        addTestCase("Writer tests", \writerTest());
+        addTestCase("Document read tests", \documentReadTest());
+        addTestCase("Document edit tests", \documentEditTest());
+        addTestCase("Merge and split tests", \mergeSplitTest());
+        addTestCase("Renderer tests", \rendererTest());
+        addTestCase("Font options tests", \fontOptionsTest());
+        addTestCase("Negative tests", \negativeTest());
+        addTestCase("Corner case tests", \cornerCaseTest());
+
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        mkdir(testDir);
+    }
+
+    globalTearDown() {
+        if (is_dir(testDir)) {
+            system("rm -rf " + testDir);
+        }
+    }
+
+    private string createPdf(string path, string text, *hash<PdfMetadata> metadata = NOTHING) {
+        PdfWriter writer();
+        writer.addTextPage(text);
+        if (metadata) {
+            writer.setMetadata(metadata);
+        }
+        writer.save(path);
+        return path;
+    }
+
+    private string createPdfWithFontOptions(string path, string text, hash<PdfFontOptions> opts) {
+        PdfWriter writer();
+        writer.setFontOptions(opts);
+        writer.addTextPage(text);
+        writer.save(path);
+        return path;
+    }
+
+    writerTest() {
+        PdfWriter writer();
+        writer.addBlankPage();
+        writer.addTextPage("Hello PDF");
+        assertEq(2, writer.pageCount(), "writer counts pages before save");
+
+        writer.save(basePdf);
+        assertEq(True, is_file(basePdf), "writer saved PDF file");
+    }
+
+    documentReadTest() {
+        createPdf(basePdf, "Metadata test", <PdfMetadata>{
+            "title": "Test Title",
+            "author": "Qore",
+            "subject": "Unit Test",
+        });
+
+        PdfDocument doc(basePdf);
+        assertEq(1, doc.pageCount(), "document page count");
+
+        hash<PdfMetadata> meta = doc.metadata();
+        assertEq("Test Title", meta.title, "metadata title");
+        assertEq("Qore", meta.author, "metadata author");
+        assertEq("Unit Test", meta.subject, "metadata subject");
+
+        PdfReader reader(basePdf);
+        assertEq(1, reader.pageCount(), "reader page count");
+        assertEq("Test Title", reader.metadata().title, "reader metadata title");
+    }
+
+    documentEditTest() {
+        string editPdf = testDir + "/edit.pdf";
+        createPdf(basePdf, "Edit test");
+
+        PdfDocument doc(basePdf);
+        doc.setMetadata(<PdfMetadata>{"title": "Updated"});
+        list<int> pages = ();
+        pages += 0;
+        doc.rotatePages(pages, 90);
+        doc.save(editPdf);
+
+        PdfDocument check(editPdf);
+        assertEq("Updated", check.metadata().title, "metadata update persisted");
+    }
+
+    mergeSplitTest() {
+        string pdf1 = testDir + "/merge1.pdf";
+        string pdf2 = testDir + "/merge2.pdf";
+        createPdf(pdf1, "One");
+        createPdf(pdf2, "Two");
+
+        PdfDocument merged = PdfDocument::merge((pdf1, pdf2));
+        string mergedPath = testDir + "/merged.pdf";
+        merged.save(mergedPath);
+        assertEq(True, is_file(mergedPath), "merged PDF saved");
+
+        PdfDocument mergedDoc(mergedPath);
+        assertEq(2, mergedDoc.pageCount(), "merged PDF has 2 pages");
+
+        string splitDir = testDir + "/split";
+        mkdir(splitDir);
+        list<string> outputs = PdfDocument::split(mergedPath, splitDir, "part_");
+        assertEq(2, outputs.size(), "split returns one path per page");
+        foreach string out in (outputs) {
+            assertEq(True, is_file(out), "split output exists");
+        }
+    }
+
+    rendererTest() {
+        if (!PdfRenderer::isAvailable()) {
+            bool thrown = False;
+            try {
+                PdfRenderer::renderPage(basePdf, 0, 150);
+            } catch (hash<ExceptionInfo> ex) {
+                thrown = True;
+                assertEq("PDF-ERROR", ex.err, "renderPage errors when PDFium missing");
+            }
+            assertTrue(thrown, "renderPage throws when PDFium missing");
+            return;
+        }
+
+        createPdf(basePdf, "Render test");
+        hash<PdfRenderResult> result = PdfRenderer::renderPage(basePdf, 0, 72);
+        assertTrue(result.width > 0, "rendered width > 0");
+        assertTrue(result.height > 0, "rendered height > 0");
+        assertEq("BGRA", result.format, "render format");
+        assertTrue(result.data.size() > 0, "render data present");
+
+        string text = PdfRenderer::extractText(basePdf, 0);
+        assertTrue(text.find("Render test") >= 0, "extracted text contains content");
+    }
+
+    fontOptionsTest() {
+        *string mode_filter = getenv("PDF_FONT_MODE");
+
+        hash<string, hash<PdfFontOptions>> modes = (
+            "embed+subset": <PdfFontOptions>{
+                "embed": True,
+                "subset": True,
+                "prefer_non_cid": False,
+            },
+            "embed+no-subset": <PdfFontOptions>{
+                "embed": True,
+                "subset": False,
+                "prefer_non_cid": False,
+            },
+            "embed+prefer-non-cid": <PdfFontOptions>{
+                "embed": True,
+                "subset": True,
+                "prefer_non_cid": True,
+            },
+            "no-embed": <PdfFontOptions>{
+                "embed": False,
+                "subset": False,
+                "prefer_non_cid": False,
+            }
+        );
+
+        foreach string mode in (modes.keys()) {
+            if (mode_filter && mode_filter != mode) {
+                continue;
+            }
+            string out = testDir + "/font_" + mode + ".pdf";
+            createPdfWithFontOptions(out, "Font test " + mode, modes{mode});
+            assertEq(True, is_file(out), "font option " + mode + " produced PDF");
+        }
+    }
+
+    negativeTest() {
+        bool thrown = False;
+        try {
+            PdfDocument doc(testDir + "/missing.pdf");
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing file throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing file throws");
+
+        createPdf(basePdf, "Negative test");
+        PdfDocument doc(basePdf);
+
+        thrown = False;
+        try {
+            list<int> pages = ();
+            pages += 0;
+            doc.rotatePages(pages, 45);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid rotation throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid rotation throws");
+
+        thrown = False;
+        try {
+            list<int> pages = ();
+            pages += 999;
+            doc.rotatePages(pages, 90);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid page index throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid page index throws");
+
+        thrown = False;
+        try {
+            PdfDocument::merge(());
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "merge empty list throws PDF-ERROR");
+        }
+        assertTrue(thrown, "merge empty list throws");
+    }
+
+    cornerCaseTest() {
+        string singlePdf = testDir + "/single.pdf";
+        createPdf(singlePdf, "Single page");
+
+        PdfDocument doc(singlePdf);
+        list<int> emptyPages = ();
+        doc.rotatePages(emptyPages, 90);
+        assertEq(1, doc.pageCount(), "rotate on empty page list is no-op");
+
+        list<string> outputs = PdfDocument::split(singlePdf, testDir, "single_");
+        assertEq(1, outputs.size(), "split single-page returns one file");
+    }
+}

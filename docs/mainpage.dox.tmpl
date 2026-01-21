@@ -1,0 +1,45 @@
+/**
+\mainpage Qore PDF Module
+
+\section intro Introduction
+
+The `pdf` module provides PDF functionality for Qore using QPDF and PoDoFo,
+with optional PDFium support for rendering and text extraction.
+
+\section features Features
+
+- Create PDFs with PoDoFo
+- Read/edit/merge/split PDFs with QPDF
+- Optional rendering and text extraction with PDFium
+- Data provider actions for Qorus integration
+
+\section dataprov Data Provider Actions
+
+The module ships with PdfDataProvider for Qore's data provider framework.
+Example `qdp` commands:
+
+\code{.bash}
+qdp 'pdf{}/document/create' output_path=out.pdf,page_count=2
+qdp 'pdf{}/document/info' input_path=out.pdf
+qdp 'pdf{}/document/metadata' input_path=out.pdf,output_path=meta.pdf,metadata='{"title":"Updated"}'
+qdp 'pdf{}/document/merge' inputs='("a.pdf","b.pdf")',output_path=merged.pdf
+qdp 'pdf{}/document/rotate' input_path=out.pdf,output_path=rotated.pdf,pages='(0)',degrees=90
+qdp 'pdf{}/render/page' input_path=out.pdf,page_index=0,dpi=150
+qdp 'pdf{}/render/extract-text' input_path=out.pdf,page_index=0
+\endcode
+
+\section dependencies Dependencies
+
+- QPDF (required)
+- PoDoFo (required; bundled by default, LGPL-2.0-or-later)
+- PDFium (optional)
+
+\section releasenotes Release Notes
+
+- 2026-01-20: Bundled PoDoFo to include a fix for a CFF font-embedding leak in
+  the AFDKO subsetting path; optional PDFium remains unchanged.
+
+\section license License
+
+MIT License
+*/

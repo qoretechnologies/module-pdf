@@ -1,0 +1,188 @@
+# -*- mode: qore; indent-tabs-mode: nil -*-
+#! @file PdfDataProvider.qm Qore user module providing a data provider API for PDF documents
+
+/*  PdfDataProvider.qm Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%requires qore >= 2.0
+
+%requires DataProvider
+%requires Mime
+%requires pdf
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+
+module PdfDataProvider {
+    version = "1.0";
+    desc = "user module providing a data provider API for PDF documents";
+    author = "Qore Technologies, s.r.o.";
+    url = "https://github.com/qoretechnologies/module-pdf";
+    license = "MIT";
+    init = sub () {
+        # Register the data provider factory
+        DataProvider::registerFactory(new PdfDataProviderFactory());
+
+        # Register the data provider application
+        DataProviderActionCatalog::registerApp(<DataProviderAppInfo>{
+            "name": PdfDataProvider::AppName,
+            "display_name": "PDF Document",
+            "short_desc": "PDF manipulation and rendering",
+            "desc": "Create, edit, and render PDF documents with metadata support",
+            "logo": Priv::PdfLogo,
+            "logo_file_name": "pdf-logo.svg",
+            "logo_mime_type": MimeTypeSvg,
+        });
+
+        # Register actions
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/create",
+            "action": "create-document",
+            "display_name": "Create Document",
+            "short_desc": "Create a new PDF document",
+            "desc": "Create a PDF document from blank or text pages",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/info",
+            "action": "get-document-info",
+            "display_name": "Get Document Info",
+            "short_desc": "Get PDF metadata and page count",
+            "desc": "Read document metadata and page count without modifying the file",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/metadata",
+            "action": "set-document-metadata",
+            "display_name": "Set Document Metadata",
+            "short_desc": "Update PDF metadata",
+            "desc": "Update document metadata and write a new PDF",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/merge",
+            "action": "merge-documents",
+            "display_name": "Merge Documents",
+            "short_desc": "Merge multiple PDFs",
+            "desc": "Merge multiple PDF files into a single document",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/split",
+            "action": "split-document",
+            "display_name": "Split Document",
+            "short_desc": "Split a PDF into pages",
+            "desc": "Split a PDF into single-page files",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/rotate",
+            "action": "rotate-pages",
+            "display_name": "Rotate Pages",
+            "short_desc": "Rotate specific pages",
+            "desc": "Rotate selected pages by multiples of 90 degrees",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/render/page",
+            "action": "render-page",
+            "display_name": "Render Page",
+            "short_desc": "Render a PDF page",
+            "desc": "Render a PDF page to a raw bitmap using PDFium",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/render/extract-text",
+            "action": "extract-text",
+            "display_name": "Extract Text",
+            "short_desc": "Extract page text",
+            "desc": "Extract text from a single PDF page using PDFium",
+            "action_code": DPAT_API,
+        });
+    };
+}
+
+/** @mainpage PdfDataProvider Module
+
+    @tableofcontents
+
+    @section pdfdpintro PDF DataProvider Introduction
+
+    The PdfDataProvider module exposes PDF document creation, editing, and rendering
+    operations through the Qore DataProvider API.
+
+    Key classes:
+    - @ref PdfDataProvider::PdfDataProviderFactory "PdfDataProviderFactory"
+    - @ref PdfDataProvider::PdfDataProvider "PdfDataProvider"
+    - @ref PdfDataProvider::PdfDocumentDataProvider "PdfDocumentDataProvider"
+    - @ref PdfDataProvider::PdfRenderDataProvider "PdfRenderDataProvider"
+
+    @section pdfdp_factory Factory Name
+
+    Factory string for DataProvider::getFactoryEx(): "pdf"
+
+    @section pdfdp_examples Examples
+
+    @par API Example: Create a Document
+    @verbatim qdp 'pdf{}/document/create' output_path=out.pdf,page_count=2 @endverbatim
+
+    @par API Example: Merge Documents
+    @verbatim qdp 'pdf{}/document/merge' inputs='("a.pdf","b.pdf")',output_path=merged.pdf @endverbatim
+
+    @par API Example: Render a Page
+    @verbatim qdp 'pdf{}/render/page' input_path=doc.pdf,page_index=0,dpi=150 @endverbatim
+
+    @par API Example: Update Metadata
+    @verbatim qdp 'pdf{}/document/metadata' input_path=in.pdf,output_path=out.pdf,metadata='{"title":"Updated"}' @endverbatim
+
+    @par API Example: Rotate Pages
+    @verbatim qdp 'pdf{}/document/rotate' input_path=in.pdf,output_path=rotated.pdf,pages='(0,1)',degrees=90 @endverbatim
+
+    @par API Example: Extract Text
+    @verbatim qdp 'pdf{}/render/extract-text' input_path=doc.pdf,page_index=0 @endverbatim
+*/
+
+public namespace PdfDataProvider {
+    #! Application name
+    public const AppName = "PDF";
+}
+
+namespace Priv {
+    #! PDF logo (loaded at initialization)
+    const PdfLogo = File::readTextFile(get_script_dir() + "/pdf-logo.svg");
+}

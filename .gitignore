@@ -1,0 +1,9 @@
+build/
+build-bundled/
+build-podofo/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+Testing/
+compile_commands.json

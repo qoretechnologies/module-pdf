@@ -1,0 +1,102 @@
+/* -*- mode: c++; indent-tabs-mode: nil -*- */
+/** @file QC_PdfRenderer.cpp defines the %Qore PdfRenderer class */
+/*
+    Qore pdf module
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+#include "QC_PdfRenderer.h"
+#include "PdfRenderer.h"
+
+//! Rendered PDF page data
+/**
+    Bitmap payload for rendered PDF pages.
+*/
+hashdecl Qore::Pdf::PdfRenderResult {
+    //! Raw pixel data
+    binary data;
+
+    //! Width in pixels
+    int width;
+
+    //! Height in pixels
+    int height;
+
+    //! Bytes per row
+    int stride;
+
+    //! Pixel format (BGRA)
+    string format;
+}
+
+//! PDF rendering and text extraction
+/**
+    @since %pdf 1.0
+*/
+qclass PdfRenderer [arg=void* priv; ns=Qore::Pdf];
+
+//! Returns true if PDFium is available
+/**
+    @return True if PDFium support is compiled in
+*/
+static bool PdfRenderer::isAvailable() {
+    return QorePdfRenderer::isAvailable();
+}
+
+//! Renders a page to a bitmap
+/** @param path PDF path
+    @param page_index zero-based page index
+    @param dpi resolution in DPI
+
+    @return a @ref Qore::Pdf::PdfRenderResult hash with pixel data
+
+    @throw PDF-ERROR if rendering fails or PDFium is unavailable
+*/
+static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index,
+        *int dpi = 150) [dom=FILESYSTEM] {
+    int dpi_value = dpi;
+    if (dpi_value <= 0) {
+        xsink->raiseException("PDF-ERROR", "DPI must be positive");
+        return QoreValue();
+    }
+    if (page_index < 0) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+        return QoreValue();
+    }
+    return QorePdfRenderer::renderPage(path->c_str(), page_index, dpi_value, xsink);
+}
+
+//! Extracts text from a page
+/** @param path PDF path
+    @param page_index zero-based page index
+
+    @return extracted text
+
+    @throw PDF-ERROR if extraction fails or PDFium is unavailable
+*/
+static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM] {
+    if (page_index < 0) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+        return QoreValue();
+    }
+    return QorePdfRenderer::extractText(path->c_str(), page_index, xsink);
+}

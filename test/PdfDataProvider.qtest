@@ -1,0 +1,464 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore PdfDataProvider module test suite
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+
+%requires QUnit
+%requires Util
+%requires DataProvider
+%requires pdf
+%requires PdfDataProvider
+
+%exec-class PdfDataProviderTest
+
+public class PdfDataProviderTest inherits QUnit::Test {
+    private {
+        string testDir;
+    }
+
+    constructor() : Test("PdfDataProviderTest", "1.0") {
+        testDir = tmp_location() + "/pdf_dp_test_" + string(getpid());
+
+        addTestCase("Module loading tests", \moduleLoadingTest());
+        addTestCase("App registration tests", \appRegistrationTest());
+        addTestCase("Action registration tests", \actionRegistrationTest());
+        addTestCase("Create document action tests", \createDocumentActionTest());
+        addTestCase("Document info action tests", \documentInfoActionTest());
+        addTestCase("Set metadata action tests", \setMetadataActionTest());
+        addTestCase("Merge document action tests", \mergeDocumentActionTest());
+        addTestCase("Split document action tests", \splitDocumentActionTest());
+        addTestCase("Rotate pages action tests", \rotatePagesActionTest());
+        addTestCase("Render page action tests", \renderPageActionTest());
+        addTestCase("Extract text action tests", \extractTextActionTest());
+        addTestCase("Negative action tests", \negativeActionTest());
+        addTestCase("Corner case tests", \cornerCaseTest());
+
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        mkdir(testDir);
+    }
+
+    globalTearDown() {
+        if (is_dir(testDir)) {
+            system("rm -rf " + testDir);
+        }
+    }
+
+    private string createPdf(string path, string text, *hash<PdfMetadata> metadata = NOTHING) {
+        PdfWriter writer();
+        writer.addTextPage(text);
+        if (metadata) {
+            writer.setMetadata(metadata);
+        }
+        writer.save(path);
+        return path;
+    }
+
+    private AbstractDataProvider getDocumentProvider(string name) {
+        PdfDataProvider factory();
+        return factory.getChildProviderEx("document").getChildProviderEx(name);
+    }
+
+    private AbstractDataProvider getRenderProvider(string name) {
+        PdfDataProvider factory();
+        return factory.getChildProviderEx("render").getChildProviderEx(name);
+    }
+
+    private nothing assertPdfError(string label, code action) {
+        bool thrown = False;
+        try {
+            action();
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, label);
+        }
+        assertTrue(thrown, label);
+    }
+
+    # ==================== Module Loading Tests ====================
+
+    moduleLoadingTest() {
+        AbstractDataProviderFactory pdfFactory = DataProvider::getFactory("pdf");
+        assertEq(True, exists pdfFactory, "pdf factory is registered");
+        assertEq("pdf", pdfFactory.getName(), "factory name is 'pdf'");
+    }
+
+    # ==================== App Registration Tests ====================
+
+    appRegistrationTest() {
+        *hash<DataProviderAppInfo> appInfo = DataProviderActionCatalog::getApp("PDF");
+        assertEq(True, exists appInfo, "PDF app is registered");
+        assertEq("PDF", appInfo.name, "app name is PDF");
+        assertEq("PDF Document", appInfo.display_name, "app display_name");
+        assertEq(True, exists appInfo.short_desc, "app has short_desc");
+        assertEq(True, exists appInfo.desc, "app has desc");
+        assertEq(True, exists appInfo.logo, "app has logo");
+        assertEq("pdf-logo.svg", appInfo.logo_file_name, "app logo_file_name");
+        assertEq(MimeTypeSvg, appInfo.logo_mime_type, "app logo_mime_type");
+        assertTrue(appInfo.logo.find("<svg") >= 0, "logo contains SVG tag");
+        assertTrue(appInfo.logo.find("</svg>") >= 0, "logo contains closing SVG tag");
+    }
+
+    # ==================== Action Registration Tests ====================
+
+    actionRegistrationTest() {
+        hash<string, hash<DataProviderActionInfo>> actions = DataProviderActionCatalog::getActionHashEx("PDF");
+        assertEq(True, exists actions{"create-document"}, "create-document action exists");
+        assertEq("/document/create", actions{"create-document"}.path, "create path matches");
+        assertEq(True, exists actions{"get-document-info"}, "get-document-info action exists");
+        assertEq("/document/info", actions{"get-document-info"}.path, "info path matches");
+        assertEq(True, exists actions{"set-document-metadata"}, "set-document-metadata action exists");
+        assertEq("/document/metadata", actions{"set-document-metadata"}.path, "metadata path matches");
+        assertEq(True, exists actions{"merge-documents"}, "merge-documents action exists");
+        assertEq("/document/merge", actions{"merge-documents"}.path, "merge path matches");
+        assertEq(True, exists actions{"split-document"}, "split-document action exists");
+        assertEq("/document/split", actions{"split-document"}.path, "split path matches");
+        assertEq(True, exists actions{"rotate-pages"}, "rotate-pages action exists");
+        assertEq("/document/rotate", actions{"rotate-pages"}.path, "rotate path matches");
+        assertEq(True, exists actions{"render-page"}, "render-page action exists");
+        assertEq("/render/page", actions{"render-page"}.path, "render path matches");
+        assertEq(True, exists actions{"extract-text"}, "extract-text action exists");
+        assertEq("/render/extract-text", actions{"extract-text"}.path, "extract path matches");
+    }
+
+    # ==================== Create Document Action Tests ====================
+
+    createDocumentActionTest() {
+        AbstractDataProvider dp = getDocumentProvider("create");
+        assertEq(True, exists dp, "create provider exists");
+
+        string output_path = testDir + "/create_pages.pdf";
+        hash<auto> response = dp.doRequest({
+            "output_path": output_path,
+            "page_count": 2,
+            "metadata": <PdfMetadata>{"title": "DP Create"},
+            "font_options": <PdfFontOptions>{"embed": True, "subset": True, "prefer_non_cid": False},
+        });
+
+        assertEq(True, response.success, "create succeeded");
+        assertEq(2, response.page_count, "page_count matches");
+        assertEq(output_path, response.output_path, "output_path matches");
+        assertTrue(response.size > 0, "output size is positive");
+        assertEq(True, is_file(output_path), "created PDF exists");
+        PdfReader created_reader(output_path);
+        assertEq(2, created_reader.pageCount(), "created PDF has 2 pages");
+
+        string output_path2 = testDir + "/create_pages_list.pdf";
+        hash<auto> response2 = dp.doRequest({
+            "output_path": output_path2,
+            "pages": (
+                <PdfCreatePageSpec>{"type": "blank", "width": 500.0, "height": 500.0},
+                <PdfCreatePageSpec>{"type": "text", "text": "Hello", "width": 612.0, "height": 792.0},
+            ),
+        });
+        assertEq(True, response2.success, "create with pages list succeeded");
+        assertEq(2, response2.page_count, "pages list count matches");
+    }
+
+    # ==================== Document Info Action Tests ====================
+
+    documentInfoActionTest() {
+        string info_path = testDir + "/info.pdf";
+        createPdf(info_path, "Info", <PdfMetadata>{"title": "Info Title"});
+
+        AbstractDataProvider dp = getDocumentProvider("info");
+        hash<auto> response = dp.doRequest({
+            "input_path": info_path,
+        });
+
+        assertEq(1, response.page_count, "info page count");
+        assertEq("Info Title", response.metadata.title, "info metadata title");
+    }
+
+    # ==================== Set Metadata Action Tests ====================
+
+    setMetadataActionTest() {
+        string input_path = testDir + "/metadata_input.pdf";
+        createPdf(input_path, "Metadata", <PdfMetadata>{"title": "Old"});
+
+        AbstractDataProvider dp = getDocumentProvider("metadata");
+        string output_path = testDir + "/metadata_output.pdf";
+        hash<auto> response = dp.doRequest({
+            "input_path": input_path,
+            "output_path": output_path,
+            "metadata": <PdfMetadata>{"title": "New"},
+        });
+        assertEq(True, response.success, "metadata update succeeded");
+        assertEq(output_path, response.output_path, "metadata output path matches");
+        PdfReader updated_reader(output_path);
+        assertEq("New", updated_reader.metadata().title, "metadata updated in output file");
+
+        hash<auto> response2 = dp.doRequest({
+            "input_path": input_path,
+            "metadata": <PdfMetadata>{"title": "Overwrite"},
+            "overwrite": True,
+        });
+        assertEq(True, response2.success, "metadata overwrite succeeded");
+        assertEq(input_path, response2.output_path, "overwrite uses input path");
+        PdfReader overwrite_reader(input_path);
+        assertEq("Overwrite", overwrite_reader.metadata().title, "metadata updated in input file");
+    }
+
+    # ==================== Merge Document Action Tests ====================
+
+    mergeDocumentActionTest() {
+        string pdf1 = testDir + "/merge1.pdf";
+        string pdf2 = testDir + "/merge2.pdf";
+        createPdf(pdf1, "One");
+        createPdf(pdf2, "Two");
+
+        AbstractDataProvider dp = getDocumentProvider("merge");
+        string output_path = testDir + "/merged.pdf";
+        hash<auto> response = dp.doRequest({
+            "inputs": (pdf1, pdf2),
+            "output_path": output_path,
+        });
+
+        assertEq(True, response.success, "merge succeeded");
+        assertEq(2, response.page_count, "merged page count");
+        assertEq(True, is_file(output_path), "merged file exists");
+    }
+
+    # ==================== Split Document Action Tests ====================
+
+    splitDocumentActionTest() {
+        string input_path = testDir + "/split_input.pdf";
+        PdfWriter writer();
+        writer.addBlankPage();
+        writer.addBlankPage();
+        writer.save(input_path);
+
+        string split_dir = testDir + "/split_output";
+        mkdir(split_dir);
+
+        AbstractDataProvider dp = getDocumentProvider("split");
+        hash<auto> response = dp.doRequest({
+            "input_path": input_path,
+            "output_dir": split_dir,
+            "prefix": "part_",
+        });
+
+        assertEq(2, response.count, "split output count");
+        assertEq(2, response.outputs.size(), "split outputs list size");
+        foreach string out in (response.outputs) {
+            assertEq(True, is_file(out), "split output exists");
+        }
+    }
+
+    # ==================== Rotate Pages Action Tests ====================
+
+    rotatePagesActionTest() {
+        string input_path = testDir + "/rotate_input.pdf";
+        PdfWriter writer();
+        writer.addBlankPage();
+        writer.addBlankPage();
+        writer.save(input_path);
+
+        AbstractDataProvider dp = getDocumentProvider("rotate");
+        string output_path = testDir + "/rotate_output.pdf";
+        hash<auto> response = dp.doRequest({
+            "input_path": input_path,
+            "output_path": output_path,
+            "pages": (0,),
+            "degrees": 90,
+        });
+
+        assertEq(True, response.success, "rotate succeeded");
+        assertEq(output_path, response.output_path, "rotate output path");
+        assertEq(2, response.page_count, "rotate page count");
+        assertEq(True, is_file(output_path), "rotate output exists");
+    }
+
+    # ==================== Render Page Action Tests ====================
+
+    renderPageActionTest() {
+        string input_path = testDir + "/render_input.pdf";
+        createPdf(input_path, "Render action");
+
+        AbstractDataProvider dp = getRenderProvider("page");
+        if (!PdfRenderer::isAvailable()) {
+            assertPdfError("render fails when PDFium missing", sub () {
+                dp.doRequest({
+                    "input_path": input_path,
+                    "page_index": 0,
+                    "dpi": 72,
+                });
+            });
+            return;
+        }
+
+        hash<auto> response = dp.doRequest({
+            "input_path": input_path,
+            "page_index": 0,
+            "dpi": 72,
+        });
+        assertTrue(response.width > 0, "render width > 0");
+        assertTrue(response.height > 0, "render height > 0");
+        assertEq("BGRA", response.format, "render format");
+        assertEq(True, exists response.data, "render response includes data");
+        assertTrue(response.size > 0, "render data size > 0");
+
+        string output_path = testDir + "/render_page.bgra";
+        hash<auto> response2 = dp.doRequest({
+            "input_path": input_path,
+            "page_index": 0,
+            "dpi": 72,
+            "output_path": output_path,
+        });
+        assertEq(output_path, response2.output_path, "render output_path matches");
+        assertEq(False, exists response2.data, "render output does not include data");
+        assertEq(True, is_file(output_path), "render output file exists");
+    }
+
+    # ==================== Extract Text Action Tests ====================
+
+    extractTextActionTest() {
+        string input_path = testDir + "/extract_input.pdf";
+        createPdf(input_path, "Extract action text");
+
+        AbstractDataProvider dp = getRenderProvider("extract-text");
+        if (!PdfRenderer::isAvailable()) {
+            assertPdfError("extract fails when PDFium missing", sub () {
+                dp.doRequest({
+                    "input_path": input_path,
+                    "page_index": 0,
+                });
+            });
+            return;
+        }
+
+        hash<auto> response = dp.doRequest({
+            "input_path": input_path,
+            "page_index": 0,
+        });
+        assertTrue(response.text.find("Extract action text") >= 0, "extracted text contains input");
+    }
+
+    # ==================== Negative Action Tests ====================
+
+    negativeActionTest() {
+        AbstractDataProvider create_dp = getDocumentProvider("create");
+        assertPdfError("create requires output_path", sub () {
+            create_dp.doRequest({
+                "page_count": 1,
+            });
+        });
+
+        assertPdfError("create requires page_count > 0", sub () {
+            create_dp.doRequest({
+                "output_path": testDir + "/bad.pdf",
+                "page_count": 0,
+            });
+        });
+
+        assertPdfError("create requires pages list non-empty", sub () {
+            create_dp.doRequest({
+                "output_path": testDir + "/bad2.pdf",
+                "pages": (),
+            });
+        });
+
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        assertPdfError("metadata requires output_path or overwrite", sub () {
+            metadata_dp.doRequest({
+                "input_path": testDir + "/missing.pdf",
+                "metadata": <PdfMetadata>{"title": "Bad"},
+            });
+        });
+
+        AbstractDataProvider merge_dp = getDocumentProvider("merge");
+        assertPdfError("merge requires inputs", sub () {
+            merge_dp.doRequest({
+                "inputs": (),
+                "output_path": testDir + "/merge.pdf",
+            });
+        });
+
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        assertPdfError("rotate requires output_path or overwrite", sub () {
+            rotate_dp.doRequest({
+                "input_path": testDir + "/missing.pdf",
+                "pages": (0,),
+                "degrees": 90,
+            });
+        });
+
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        assertPdfError("split requires output_dir", sub () {
+            split_dp.doRequest({
+                "input_path": testDir + "/missing.pdf",
+                "output_dir": "",
+            });
+        });
+
+        if (PdfRenderer::isAvailable()) {
+            AbstractDataProvider render_dp = getRenderProvider("page");
+            assertPdfError("render requires positive dpi", sub () {
+                render_dp.doRequest({
+                    "input_path": testDir + "/missing.pdf",
+                    "page_index": 0,
+                    "dpi": 0,
+                });
+            });
+        }
+    }
+
+    # ==================== Corner Case Tests ====================
+
+    cornerCaseTest() {
+        string input_path = testDir + "/corner_input.pdf";
+        PdfWriter writer();
+        writer.addBlankPage();
+        writer.save(input_path);
+
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        string output_path = testDir + "/corner_rotate.pdf";
+        hash<auto> response = rotate_dp.doRequest({
+            "input_path": input_path,
+            "output_path": output_path,
+            "pages": (),
+            "degrees": 90,
+        });
+        assertEq(True, response.success, "rotate empty pages list succeeds");
+        assertEq(1, response.page_count, "rotate empty pages keeps count");
+
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        string split_dir = testDir + "/corner_split";
+        mkdir(split_dir);
+        hash<auto> split_response = split_dp.doRequest({
+            "input_path": input_path,
+            "output_dir": split_dir,
+        });
+        assertEq(1, split_response.count, "split single-page returns one output");
+        assertEq(True, is_file(split_response.outputs[0]), "split single-page output exists");
+    }
+}

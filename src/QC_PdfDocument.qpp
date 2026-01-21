@@ -1,0 +1,177 @@
+/* -*- mode: c++; indent-tabs-mode: nil -*- */
+/** @file QC_PdfDocument.cpp defines the %Qore PdfDocument class and related types */
+/*
+    Qore pdf module
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+#include "QC_PdfDocument.h"
+#include "PdfDocument.h"
+
+//! PDF document metadata
+/**
+    Structured metadata fields for PDF documents.
+*/
+hashdecl Qore::Pdf::PdfMetadata {
+    //! Document title
+    *string title;
+
+    //! Document author
+    *string author;
+
+    //! Document subject
+    *string subject;
+
+    //! Document keywords
+    *string keywords;
+
+    //! Document creator
+    *string creator;
+
+    //! Document producer
+    *string producer;
+}
+
+//! A PDF document for reading and editing
+/**
+    @since %pdf 1.0
+*/
+qclass PdfDocument [arg=QorePdfDocument* doc; ns=Qore::Pdf];
+
+//! Opens a PDF document from a file
+/** @param path the PDF file path
+    @param password optional password
+*/
+PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return;
+    }
+    ReferenceHolder<QorePdfDocument> holder(new QorePdfDocument(path->c_str(),
+        password ? password->c_str() : "", xsink), xsink);
+    if (*xsink) {
+        return;
+    }
+    self->setPrivate(CID_PDFDOCUMENT, holder.release());
+}
+
+//! Returns the number of pages in the document
+/** Returns the number of pages in the document.
+    @return the number of pages
+
+    @throw PDF-ERROR if the document is not initialized or cannot be read
+*/
+int PdfDocument::pageCount() {
+    return doc->pageCount(xsink);
+}
+
+//! Returns the document metadata
+/** Returns the document metadata.
+    @return a @ref Qore::Pdf::PdfMetadata hash
+
+    @throw PDF-ERROR if the document is not initialized or metadata cannot be read
+*/
+hash<PdfMetadata> PdfDocument::metadata() {
+    return doc->getMetadata(xsink);
+}
+
+//! Updates the document metadata
+/** Updates the document metadata.
+    @param metadata metadata fields to set
+
+    @throw PDF-ERROR if the document is not initialized or metadata cannot be updated
+*/
+nothing PdfDocument::setMetadata(hash<PdfMetadata> metadata) {
+    doc->setMetadata(metadata, xsink);
+}
+
+//! Saves the document to a file
+/** Saves the document to a file.
+    @param path output PDF path
+
+    @throw PDF-ERROR if the document is not initialized or cannot be saved
+*/
+nothing PdfDocument::save(string path) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return QoreValue();
+    }
+    doc->save(path->c_str(), xsink);
+}
+
+//! Rotates specific pages by a multiple of 90 degrees
+/** @param pages list of zero-based page indices
+    @param degrees rotation in degrees (must be multiple of 90)
+
+    @throw PDF-ERROR if any page index is invalid or rotation is not valid
+*/
+nothing PdfDocument::rotatePages(list<int> pages, int degrees) {
+    if (degrees % 90 != 0) {
+        xsink->raiseException("PDF-ERROR", "Rotation degrees must be a multiple of 90");
+        return QoreValue();
+    }
+    doc->rotatePages(pages, degrees, xsink);
+}
+
+//! Merges multiple PDF files into a single document
+/** @param inputs list of input paths
+    @param password optional password
+
+    @return a new PdfDocument containing all pages
+
+    @throw PDF-ERROR if any input cannot be read or the input list is invalid
+*/
+static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [dom=FILESYSTEM] {
+    if (!inputs || inputs->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "Input list cannot be empty");
+        return QoreValue();
+    }
+    ReferenceHolder<QorePdfDocument> holder(QorePdfDocument::merge(inputs,
+        password ? password->c_str() : "", xsink), xsink);
+    if (*xsink || !holder) {
+        return QoreValue();
+    }
+    return new QoreObject(QC_PDFDOCUMENT, getProgram(), holder.release());
+}
+
+//! Splits a PDF into single-page PDFs
+/** @param input input PDF path
+    @param output_dir output directory
+    @param prefix output filename prefix
+
+    @return list of output file paths
+
+    @throw PDF-ERROR if the input cannot be read or output cannot be written
+*/
+static list<string> PdfDocument::split(string input, string output_dir, *string prefix = "page_")
+        [dom=FILESYSTEM] {
+    if (!input || input->empty()) {
+        xsink->raiseException("PDF-ERROR", "Input path is required");
+        return QoreValue();
+    }
+    if (!output_dir || output_dir->empty()) {
+        xsink->raiseException("PDF-ERROR", "Output directory is required");
+        return QoreValue();
+    }
+    return QorePdfDocument::split(input->c_str(), output_dir->c_str(),
+        prefix ? prefix->c_str() : "page_", xsink);
+}
