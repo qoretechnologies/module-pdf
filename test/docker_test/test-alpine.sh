@@ -28,11 +28,27 @@ export MAKE_JOBS=4
 # install additional dependencies for testing
 apk add --no-cache qpdf qpdf-dev freetype-dev
 
+# locate PDFium prebuilt
+PDFIUM_INCLUDE_DIR=/usr/include
+PDFIUM_LIBRARY=
+if [ -f /usr/lib/libpdfium.so ]; then
+    PDFIUM_LIBRARY=/usr/lib/libpdfium.so
+elif [ -f /usr/lib/libpdfium.a ]; then
+    PDFIUM_LIBRARY=/usr/lib/libpdfium.a
+fi
+if [ ! -f "${PDFIUM_LIBRARY}" ]; then
+    echo "PDFium library not found in image" >&2
+    exit 1
+fi
+
 # build module and install
 echo && echo "-- building module --"
 mkdir -p ${MODULE_SRC_DIR}/build
 cd ${MODULE_SRC_DIR}/build
-cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}
+cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+    -DENABLE_PDFIUM=ON \
+    -DPDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR} \
+    -DPDFIUM_LIBRARY=${PDFIUM_LIBRARY}
 make -j${MAKE_JOBS}
 make install
 
@@ -51,5 +67,5 @@ chown -R qore:qore ${MODULE_SRC_DIR}
 export QORE_MODULE_DIR=${MODULE_SRC_DIR}/qlib:${QORE_MODULE_DIR}
 cd ${MODULE_SRC_DIR}
 for test in test/*.qtest; do
-    gosu qore:qore qore $test -vv
+    gosu qore:qore qore --enable-debug $test -vv
 done

@@ -179,16 +179,42 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
 
     std::vector<unsigned short> buffer(static_cast<size_t>(count) + 1);
     int written = FPDFText_GetText(text_page, 0, count, buffer.data());
-    buffer[written] = 0;
+    if (written < 0) {
+        pdf_error(xsink, "Failed to extract text");
+        FPDFText_ClosePage(text_page);
+        FPDF_ClosePage(page);
+        FPDF_CloseDocument(doc);
+        FPDF_DestroyLibrary();
+        return nullptr;
+    }
+    size_t max_index = buffer.size() - 1;
+    size_t safe_written = static_cast<size_t>(written);
+    if (safe_written > max_index) {
+        safe_written = max_index;
+    }
+    buffer[safe_written] = 0;
 
-    QoreString str(reinterpret_cast<char*>(buffer.data()), written * 2, QCS_UTF16LE);
-    str.convertEncoding(QCS_UTF8);
+    size_t char_count = safe_written;
+    if (safe_written > 0 && buffer[safe_written - 1] == 0) {
+        char_count = safe_written - 1;
+    }
+    size_t byte_len = char_count * 2;
+    SimpleRefHolder<QoreStringNode> raw(
+        new QoreStringNode(reinterpret_cast<const char*>(buffer.data()), byte_len, QCS_UTF16LE));
+    SimpleRefHolder<QoreStringNode> str(raw->convertEncoding(QCS_UTF8, xsink));
+    if (*xsink) {
+        FPDFText_ClosePage(text_page);
+        FPDF_ClosePage(page);
+        FPDF_CloseDocument(doc);
+        FPDF_DestroyLibrary();
+        return nullptr;
+    }
 
     FPDFText_ClosePage(text_page);
     FPDF_ClosePage(page);
     FPDF_CloseDocument(doc);
     FPDF_DestroyLibrary();
 
-    return str.takeNode();
+    return str.release();
 #endif
 }

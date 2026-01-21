@@ -29,11 +29,41 @@ export MAKE_JOBS=4
 apt-get update
 apt-get install -y qpdf libqpdf-dev libfreetype-dev
 
+# locate PDFium prebuilt
+PDFIUM_INCLUDE_DIR=/usr/include
+PDFIUM_LIBRARY=
+if command -v dpkg-architecture >/dev/null 2>&1; then
+    libdir="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+    if [ -f "${libdir}/libpdfium.so" ]; then
+        PDFIUM_LIBRARY="${libdir}/libpdfium.so"
+    elif [ -f "${libdir}/libpdfium.a" ]; then
+        PDFIUM_LIBRARY="${libdir}/libpdfium.a"
+    fi
+fi
+if [ -z "${PDFIUM_LIBRARY}" ]; then
+    if [ -f /usr/lib64/libpdfium.so ]; then
+        PDFIUM_LIBRARY=/usr/lib64/libpdfium.so
+    elif [ -f /usr/lib/libpdfium.so ]; then
+        PDFIUM_LIBRARY=/usr/lib/libpdfium.so
+    elif [ -f /usr/lib64/libpdfium.a ]; then
+        PDFIUM_LIBRARY=/usr/lib64/libpdfium.a
+    elif [ -f /usr/lib/libpdfium.a ]; then
+        PDFIUM_LIBRARY=/usr/lib/libpdfium.a
+    fi
+fi
+if [ ! -f "${PDFIUM_LIBRARY}" ]; then
+    echo "PDFium library not found in image" >&2
+    exit 1
+fi
+
 # build module and install
 echo && echo "-- building module --"
 mkdir -p ${MODULE_SRC_DIR}/build
 cd ${MODULE_SRC_DIR}/build
-cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}
+cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
+    -DENABLE_PDFIUM=ON \
+    -DPDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR} \
+    -DPDFIUM_LIBRARY=${PDFIUM_LIBRARY}
 make -j${MAKE_JOBS}
 make install
 
@@ -48,5 +78,5 @@ chown -R qore:qore ${MODULE_SRC_DIR}
 export QORE_MODULE_DIR=${MODULE_SRC_DIR}/qlib:${QORE_MODULE_DIR}
 cd ${MODULE_SRC_DIR}
 for test in test/*.qtest; do
-    gosu qore:qore qore $test -vv
+    gosu qore:qore qore --enable-debug $test -vv
 done
