@@ -27,7 +27,7 @@ export MAKE_JOBS=4
 
 # install additional dependencies for testing
 apt-get update
-apt-get install -y qpdf libqpdf-dev
+apt-get install -y qpdf libqpdf-dev libfreetype-dev
 
 # build module and install
 echo && echo "-- building module --"
