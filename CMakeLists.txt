@@ -80,6 +80,7 @@ set(QPP_SRC
     src/QC_PdfReader.qpp
     src/QC_PdfWriter.qpp
     src/QC_PdfRenderer.qpp
+    src/QC_PdfEditor.qpp
 )
 
 set(CPP_SRC
@@ -88,6 +89,7 @@ set(CPP_SRC
     src/PdfReader.cpp
     src/PdfWriter.cpp
     src/PdfRenderer.cpp
+    src/PdfEditor.cpp
 )
 
 qore_wrap_qpp_value(QPP_SOURCES ${QPP_SRC})

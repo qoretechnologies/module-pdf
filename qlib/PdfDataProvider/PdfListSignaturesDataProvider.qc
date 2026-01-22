@@ -1,7 +1,7 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfSplitDocumentDataProvider class definition
+#! Qore PdfListSignaturesDataProvider class definition
 
-/** PdfSplitDocumentDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
+/** PdfListSignaturesDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,35 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! Split document data provider
-public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
+#! List all digital signature fields in a PDF document
+/**
+    This data provider returns information about all digital signature fields in a PDF document,
+    including both signed and unsigned signature fields.
+
+    For each signature field, returns:
+    - name: Field name
+    - signer_name: Name of signer (if signed)
+    - reason: Signing reason (if provided)
+    - location: Signing location (if provided)
+    - date: Signing date/time (if signed)
+    - page: Page index where the field appears
+
+    @par Example:
+    @code{.py}
+    hash<auto> response = dp.doRequest(<PdfListSignaturesRequest>{
+        "input_path": "signed_document.pdf",
+    });
+    foreach hash<auto> sig in (response.signatures) {
+        printf("Signature: %s (signer: %s)\n", sig.name, sig.signer_name ?? "not signed");
+    }
+    @endcode
+*/
+public class PdfListSignaturesDataProvider inherits AbstractDataProvider {
     public {
         const ProviderInfo = <DataProviderInfo>{
-            "name": "split",
-            "desc": "Split a PDF into individual pages",
-            "type": "PdfSplitDocumentDataProvider",
+            "name": "list-signatures",
+            "desc": "List all digital signature fields in a PDF document (signed and unsigned)",
+            "type": "PdfListSignaturesDataProvider",
             "supports_request": True,
         };
     }
@@ -52,39 +74,32 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSplitDocumentRequest>"));
+        return AbstractDataProviderType::get(new Type("hash<PdfListSignaturesRequest>"));
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSplitDocumentResponse>"));
+        return AbstractDataProviderType::get(new Type("hash<PdfListSignaturesResponse>"));
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfSplitDocumentRequest> request = req;
+        hash<PdfListSignaturesRequest> request = req;
 
+        # Validate required fields
         if (!request.input_path || request.input_path.size() == 0) {
             throw "PDF-ERROR", "input_path is required";
         }
 
-        if (!request.output_dir || request.output_dir.size() == 0) {
-            throw "PDF-ERROR", "output_dir is required";
-        }
+        @debug("listing signatures: input=%y", request.input_path);
 
-        @debug("splitting document: input=%y output_dir=%y", request.input_path, request.output_dir);
+        PdfEditor editor(request.input_path, request.password);
+        list<hash<auto>> signatures = editor.getSignatures();
 
-        # Load document first to capture warnings
-        PdfDocument doc(request.input_path);
+        hash<PdfListSignaturesResponse> response();
+        response.success = True;
+        response.signatures = signatures;
+        response.signature_count = signatures.size();
 
-        *string prefix = request.prefix;
-        list<string> outputs = PdfDocument::split(request.input_path, request.output_dir,
-            prefix ? prefix : "page_");
-
-        hash<PdfSplitDocumentResponse> response();
-        response.outputs = outputs;
-        response.count = outputs.size();
-        response.warnings = doc.getWarnings();
-
-        @debug("split complete: pages=%d", response.count);
+        @debug("signatures found: count=%d", response.signature_count);
 
         return response;
     }

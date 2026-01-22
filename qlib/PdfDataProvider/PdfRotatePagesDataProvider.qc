@@ -79,6 +79,9 @@ public class PdfRotatePagesDataProvider inherits AbstractDataProvider {
             output_path = request.input_path;
         }
 
+        @debug("rotating pages: input=%y output=%y pages=%y degrees=%d",
+            request.input_path, output_path, request.pages, request.degrees);
+
         PdfDocument doc(request.input_path, request.password);
         doc.rotatePages(request.pages, request.degrees);
         doc.save(output_path);
@@ -88,6 +91,8 @@ public class PdfRotatePagesDataProvider inherits AbstractDataProvider {
         response.output_path = output_path;
         response.page_count = doc.pageCount();
         response.warnings = doc.getWarnings();
+
+        @debug("rotation complete: pages=%d", response.page_count);
 
         return response;
     }

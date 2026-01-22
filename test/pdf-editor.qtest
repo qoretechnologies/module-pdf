@@ -1,0 +1,556 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore pdf module - PdfEditor and graphics actions test suite
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+%modern
+
+%requires QUnit
+%requires Util
+%requires pdf
+%requires PdfDataProvider
+
+%exec-class PdfEditorTest
+
+public class PdfEditorTest inherits QUnit::Test {
+    private {
+        string testDir;
+        string basePdf;
+        string testImagePng;
+        string testImageJpeg;
+    }
+
+    #! Helper function to copy a file
+    private static copyFile(string src, string dest) {
+        binary data = ReadOnlyFile::readBinaryFile(src);
+        File f();
+        f.open(dest, O_CREAT | O_WRONLY | O_TRUNC);
+        f.write(data);
+    }
+
+    constructor() : Test("PdfEditorTest", "1.0") {
+        testDir = tmp_location() + "/pdf_editor_test_" + string(getpid());
+        basePdf = testDir + "/base.pdf";
+        testImagePng = testDir + "/test.png";
+        testImageJpeg = testDir + "/test.jpg";
+
+        addTestCase("PdfEditor basic tests", \editorBasicTest());
+        addTestCase("PdfEditor draw image tests", \editorDrawImageTest());
+        addTestCase("PdfEditor draw text tests", \editorDrawTextTest());
+        addTestCase("PdfEditor save to memory tests", \editorSaveToMemoryTest());
+        addTestCase("Data provider add-image tests", \dataProviderAddImageTest());
+        addTestCase("Data provider add-text tests", \dataProviderAddTextTest());
+        addTestCase("Data provider add-watermark tests", \dataProviderAddWatermarkTest());
+        addTestCase("Data provider add-signature-field tests", \dataProviderAddSignatureFieldTest());
+        addTestCase("Negative tests", \negativeTest());
+        addTestCase("Corner case tests", \cornerCaseTest());
+
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        mkdir(testDir);
+        createTestImages();
+        createBasePdf();
+    }
+
+    globalTearDown() {
+        if (is_dir(testDir)) {
+            system("rm -rf " + testDir);
+        }
+    }
+
+    #! Create test PDF
+    private createBasePdf() {
+        PdfWriter writer();
+        writer.addBlankPage(612.0, 792.0); # Letter size
+        writer.addBlankPage(612.0, 792.0);
+        writer.save(basePdf);
+    }
+
+    #! Create test images using ImageMagick if available
+    private createTestImages() {
+        # Create a simple test PNG using ImageMagick
+        int rc = system("convert -size 100x100 xc:red " + testImagePng + " 2>/dev/null");
+        if (rc != 0) {
+            # Fallback: create a minimal valid PNG manually (1x1 red PNG)
+            File f();
+            f.open2(testImagePng, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(<89504E470D0A1A0A0000000D4948445200000001000000010802000000907658B400000001735247420040E61C03000000046741534D410000B18F0BFC6105000000097048597300000EC300000EC301C76FA864000000124944415408D7636CF8C73F0000030001001CF3E4010000000049454E44AE426082>);
+            f.close();
+        }
+
+        # Create a simple test JPEG using ImageMagick
+        rc = system("convert -size 100x100 xc:blue " + testImageJpeg + " 2>/dev/null");
+        if (rc != 0) {
+            # Skip JPEG fallback - tests will skip JPEG tests if not available
+        }
+    }
+
+    editorBasicTest() {
+        # Test loading from file
+        PdfEditor editor(basePdf);
+        assertEq(2, editor.pageCount(), "editor page count");
+
+        # Test page dimensions
+        hash<auto> dims = editor.getPageDimensions(0);
+        assertEq(612.0, dims.width, "page width");
+        assertEq(792.0, dims.height, "page height");
+
+        # Test loading from binary data
+        File f();
+        f.open2(basePdf, O_RDONLY);
+        binary pdfData = f.readBinary(-1);
+        f.close();
+
+        PdfEditor editor2(pdfData);
+        assertEq(2, editor2.pageCount(), "editor from binary page count");
+    }
+
+    editorDrawImageTest() {
+        string outPdf = testDir + "/with_image.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Draw image from file
+        editor.drawImage(0, testImagePng, 100.0, 500.0, 50.0, 50.0, 0.0, 1.0);
+
+        # Draw image from binary data
+        if (is_file(testImageJpeg)) {
+            File f();
+            f.open2(testImageJpeg, O_RDONLY);
+            binary imgData = f.readBinary(-1);
+            f.close();
+
+            editor.drawImageFromData(0, imgData, 200.0, 500.0, 50.0, 50.0, 0.0, 0.5);
+        }
+
+        editor.save(outPdf);
+        assertEq(True, is_file(outPdf), "PDF with image saved");
+
+        # Verify file size increased
+        int origSize = hstat(basePdf).size;
+        int newSize = hstat(outPdf).size;
+        assertTrue(newSize > origSize, "PDF size increased with image");
+    }
+
+    editorDrawTextTest() {
+        string outPdf = testDir + "/with_text.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Draw basic text
+        editor.drawText(0, "Hello World", 100.0, 700.0, NOTHING, 0.0, 1.0);
+
+        # Draw styled text
+        hash<auto> style = {
+            "font": {
+                "family": "Helvetica",
+                "size": 24.0,
+                "bold": True,
+            },
+            "color": {
+                "hex": "#FF0000",
+            },
+        };
+        editor.drawText(0, "Red Bold Text", 100.0, 650.0, cast<hash<Qore::Pdf::PdfTextStyle>>(style), 0.0, 1.0);
+
+        # Draw rotated text
+        editor.drawText(0, "Rotated", 100.0, 600.0, NOTHING, 45.0, 1.0);
+
+        # Draw semi-transparent text
+        editor.drawText(0, "Semi-transparent", 100.0, 550.0, NOTHING, 0.0, 0.5);
+
+        editor.save(outPdf);
+        assertEq(True, is_file(outPdf), "PDF with text saved");
+    }
+
+    editorSaveToMemoryTest() {
+        PdfEditor editor(basePdf);
+        editor.drawText(0, "Memory Test", 100.0, 700.0, NOTHING, 0.0, 1.0);
+
+        binary result = editor.saveToMemory();
+        assertTrue(result.size() > 0, "saveToMemory returns data");
+
+        # Verify we can load the saved data
+        PdfEditor editor2(result);
+        assertEq(2, editor2.pageCount(), "loaded from memory has correct pages");
+    }
+
+    dataProviderAddImageTest() {
+        string outPdf = testDir + "/dp_image.pdf";
+
+        PdfAddImageDataProvider dp();
+
+        hash<auto> request = {
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "page_selection": {
+                "all": True,
+            },
+            "image": {
+                "image_path": testImagePng,
+                "position": {
+                    "preset": "center",
+                },
+                "opacity": 0.8,
+            },
+        };
+
+        auto response = dp.doRequest(request);
+
+        assertTrue(response.success, "add-image success");
+        assertEq(outPdf, response.output_path, "output path matches");
+        assertEq(2, response.page_count, "page count");
+        assertEq(2, response.pages_modified, "pages modified");
+        assertEq(2, response.images_added, "images added");
+        assertTrue(response.size > 0, "output size > 0");
+    }
+
+    dataProviderAddTextTest() {
+        string outPdf = testDir + "/dp_text.pdf";
+
+        PdfAddTextDataProvider dp();
+
+        hash<auto> request = {
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "page_selection": {
+                "pages": (0,),
+            },
+            "text": {
+                "text": "Data Provider Text",
+                "position": {
+                    "x": 100.0,
+                    "y": 100.0,
+                    "origin": "top-left",
+                },
+                "style": {
+                    "font": {
+                        "family": "Courier",
+                        "size": 16.0,
+                    },
+                    "color": {
+                        "name": "blue",
+                    },
+                },
+            },
+        };
+
+        auto response = dp.doRequest(request);
+
+        assertTrue(response.success, "add-text success");
+        assertEq(1, response.pages_modified, "pages modified");
+        assertEq(1, response.text_blocks_added, "text blocks added");
+    }
+
+    dataProviderAddWatermarkTest() {
+        string outPdf = testDir + "/dp_watermark.pdf";
+
+        PdfAddWatermarkDataProvider dp();
+
+        # Test text watermark
+        hash<auto> request = {
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "watermark": {
+                "type": "text",
+                "text": "CONFIDENTIAL",
+                "opacity": 0.3,
+                "rotation": -45.0,
+                "color": {
+                    "gray": 0.7,
+                },
+            },
+        };
+
+        auto response = dp.doRequest(request);
+
+        assertTrue(response.success, "add-watermark success");
+        assertEq(2, response.pages_watermarked, "pages watermarked");
+
+        # Test image watermark
+        string outPdf2 = testDir + "/dp_watermark_image.pdf";
+        request = {
+            "input_path": basePdf,
+            "output_path": outPdf2,
+            "watermark": {
+                "type": "image",
+                "image_path": testImagePng,
+                "opacity": 0.2,
+                "scale": 0.5,
+            },
+        };
+
+        response = dp.doRequest(request);
+        assertTrue(response.success, "add-watermark image success");
+    }
+
+    dataProviderAddSignatureFieldTest() {
+        string outPdf = testDir + "/dp_signature.pdf";
+
+        PdfAddSignatureFieldDataProvider dp();
+
+        hash<auto> request = {
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "signature": {
+                "position": {
+                    "preset": "bottom-right",
+                },
+                "label": "Signature",
+                "draw_line": True,
+            },
+        };
+
+        auto response = dp.doRequest(request);
+
+        assertTrue(response.success, "add-signature-field success");
+        assertEq(1, response.fields_added, "fields added");
+
+        # Test with image
+        string outPdf2 = testDir + "/dp_signature_image.pdf";
+        request = {
+            "input_path": basePdf,
+            "output_path": outPdf2,
+            "signature": {
+                "image_path": testImagePng,
+                "label": "John Doe",
+            },
+        };
+
+        response = dp.doRequest(request);
+        assertTrue(response.success, "add-signature-field with image success");
+    }
+
+    negativeTest() {
+        # Test missing input_path
+        PdfAddImageDataProvider dp();
+
+        bool thrown = False;
+        try {
+            dp.doRequest({
+                "output_path": testDir + "/should_fail.pdf",
+                "image": {
+                    "image_path": testImagePng,
+                },
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing input_path throws");
+
+        # Test missing output_path and overwrite
+        thrown = False;
+        try {
+            dp.doRequest({
+                "input_path": basePdf,
+                "image": {
+                    "image_path": testImagePng,
+                },
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing output_path throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing output_path throws");
+
+        # Test invalid image path
+        thrown = False;
+        try {
+            dp.doRequest({
+                "input_path": basePdf,
+                "output_path": testDir + "/should_fail.pdf",
+                "image": {
+                    "image_path": testDir + "/nonexistent.png",
+                },
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+        }
+        assertTrue(thrown, "invalid image path throws");
+
+        # Test invalid page index in editor
+        PdfEditor editor(basePdf);
+        thrown = False;
+        try {
+            editor.getPageDimensions(999);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid page index throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid page index throws");
+
+        # Test watermark without text or image
+        PdfAddWatermarkDataProvider wdp();
+        thrown = False;
+        try {
+            wdp.doRequest({
+                "input_path": basePdf,
+                "output_path": testDir + "/should_fail.pdf",
+                "watermark": {
+                    "type": "text",
+                },
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "watermark without text throws PDF-ERROR");
+        }
+        assertTrue(thrown, "watermark without text throws");
+    }
+
+    cornerCaseTest() {
+        # Test overwrite mode
+        string overwritePdf = testDir + "/overwrite.pdf";
+        copyFile(basePdf, overwritePdf);
+
+        PdfAddTextDataProvider dp();
+        auto response = dp.doRequest({
+            "input_path": overwritePdf,
+            "overwrite": True,
+            "text": {
+                "text": "Overwritten",
+                "position": {
+                    "x": 100.0,
+                    "y": 100.0,
+                },
+            },
+        });
+
+        assertTrue(response.success, "overwrite mode success");
+        assertEq(overwritePdf, response.output_path, "overwrite returns same path");
+
+        # Test percentage positioning
+        string percentPdf = testDir + "/percent.pdf";
+        response = dp.doRequest({
+            "input_path": basePdf,
+            "output_path": percentPdf,
+            "text": {
+                "text": "50% Position",
+                "position": {
+                    "x": 50.0,
+                    "y": 50.0,
+                    "position_mode": "percentage",
+                },
+            },
+        });
+        assertTrue(response.success, "percentage positioning success");
+
+        # Test multiple placements
+        string multiPdf = testDir + "/multi.pdf";
+        response = dp.doRequest({
+            "input_path": basePdf,
+            "output_path": multiPdf,
+            "page_selection": {
+                "all": True,
+            },
+            "placements": (
+                {
+                    "text": "First",
+                    "position": {"x": 100.0, "y": 100.0},
+                },
+                {
+                    "text": "Second",
+                    "position": {"x": 200.0, "y": 100.0},
+                },
+            ),
+        });
+        assertTrue(response.success, "multiple placements success");
+        assertTrue(response.text_blocks_added >= 4, "at least 4 text blocks added (2 per page)");
+
+        # Test page range selection
+        string rangePdf = testDir + "/range.pdf";
+        response = dp.doRequest({
+            "input_path": basePdf,
+            "output_path": rangePdf,
+            "page_selection": {
+                "from_page": 0,
+                "to_page": 0,
+            },
+            "text": {
+                "text": "First Page Only",
+                "position": {"x": 100.0, "y": 100.0},
+            },
+        });
+        assertTrue(response.success, "page range selection success");
+        assertEq(1, response.pages_modified, "only first page modified");
+
+        # Test named colors
+        string colorPdf = testDir + "/colors.pdf";
+        PdfEditor editor(basePdf);
+        hash<auto> redStyle = {
+            "color": {"name": "red"},
+        };
+        hash<auto> blueStyle = {
+            "color": {"name": "blue"},
+        };
+        hash<auto> grayStyle = {
+            "color": {"gray": 0.5},
+        };
+
+        editor.drawText(0, "Red", 100.0, 700.0, cast<hash<Qore::Pdf::PdfTextStyle>>(redStyle), 0.0, 1.0);
+        editor.drawText(0, "Blue", 100.0, 680.0, cast<hash<Qore::Pdf::PdfTextStyle>>(blueStyle), 0.0, 1.0);
+        editor.drawText(0, "Gray", 100.0, 660.0, cast<hash<Qore::Pdf::PdfTextStyle>>(grayStyle), 0.0, 1.0);
+        editor.save(colorPdf);
+        assertEq(True, is_file(colorPdf), "PDF with named colors saved");
+
+        # Test tiled watermark
+        string tiledPdf = testDir + "/tiled.pdf";
+        PdfAddWatermarkDataProvider wdp();
+        auto wresponse = wdp.doRequest({
+            "input_path": basePdf,
+            "output_path": tiledPdf,
+            "watermark": {
+                "type": "text",
+                "text": "DRAFT",
+                "position": "tile",
+                "tile_spacing_x": 150.0,
+                "tile_spacing_y": 150.0,
+                "opacity": 0.2,
+            },
+        });
+        assertTrue(wresponse.success, "tiled watermark success");
+
+        # Test image dimensions
+        hash<auto> dims = PdfEditor::getImageDimensions(testImagePng);
+        assertTrue(dims.width > 0, "image width > 0");
+        assertTrue(dims.height > 0, "image height > 0");
+
+        # Test image dimensions from data
+        File f();
+        f.open2(testImagePng, O_RDONLY);
+        binary imgData = f.readBinary(-1);
+        f.close();
+
+        dims = PdfEditor::getImageDimensionsFromData(imgData);
+        assertTrue(dims.width > 0, "image width from data > 0");
+        assertTrue(dims.height > 0, "image height from data > 0");
+    }
+}

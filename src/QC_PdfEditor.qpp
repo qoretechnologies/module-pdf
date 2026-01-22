@@ -1,0 +1,617 @@
+/* -*- mode: c++; indent-tabs-mode: nil -*- */
+/** @file QC_PdfEditor.cpp defines the %Qore PdfEditor class */
+/*
+    Qore pdf module
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+#include "QC_PdfEditor.h"
+#include "PdfEditor.h"
+
+//! Position specification for PDF elements
+/**
+    Specifies the position of elements on a PDF page.
+
+    Position can be specified using:
+    - Absolute coordinates (x, y in points)
+    - Percentage coordinates (x, y as percentage of page size)
+    - Named presets (center, corners, etc.)
+
+    @see PdfDataProvider::PdfPositionMode for position_mode values
+    @see PdfDataProvider::PdfPositionOrigin for origin values
+    @see PdfDataProvider::PdfPresetPosition for preset values
+*/
+hashdecl Qore::Pdf::PdfPosition {
+    //! X coordinate (points from origin, or percentage if position_mode="percentage")
+    *float x;
+
+    //! Y coordinate (points from origin, or percentage if position_mode="percentage")
+    *float y;
+
+    //! Position mode: "absolute" (default) or "percentage"
+    /** @see PdfDataProvider::PdfPositionMode
+    */
+    *string position_mode;
+
+    //! Origin: "top-left" (default, user-friendly) or "bottom-left" (PDF native)
+    /** @see PdfDataProvider::PdfPositionOrigin
+    */
+    *string origin;
+
+    //! Named preset position
+    /** Allowed values: "center", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center"
+        @see PdfDataProvider::PdfPresetPosition
+    */
+    *string preset;
+}
+
+//! Color specification for PDF elements
+/**
+    Specifies colors using various formats: hex, RGB, grayscale, or named colors.
+
+    Use one of the following methods to specify a color:
+    - hex: Hex color string like "#FF0000" or "FF0000"
+    - r, g, b: RGB components (0.0-1.0)
+    - gray: Grayscale value (0.0-1.0)
+    - name: Named color string
+
+    @see PdfDataProvider::PdfNamedColor for supported named colors
+*/
+hashdecl Qore::Pdf::PdfColor {
+    //! Hex color string like "#FF0000" or "FF0000"
+    *string hex;
+
+    //! Red component 0.0-1.0
+    *float r;
+
+    //! Green component 0.0-1.0
+    *float g;
+
+    //! Blue component 0.0-1.0
+    *float b;
+
+    //! Grayscale value 0.0-1.0
+    *float gray;
+
+    //! Named color
+    /** Allowed values: "black", "white", "red", "green", "blue", "yellow", "cyan", "magenta",
+        "gray", "lightgray", "darkgray", "orange", "purple", "brown", "pink"
+        @see PdfDataProvider::PdfNamedColor
+    */
+    *string name;
+}
+
+//! Text style specification for PDF text drawing
+/**
+    Specifies styling options for text drawn on PDF pages.
+
+    @see PdfDataProvider::PdfTextAlignment for align values
+    @see PdfDataProvider::PdfVerticalAlignment for valign values
+    @see PdfDataProvider::PdfRenderMode for render_mode values
+*/
+hashdecl Qore::Pdf::PdfTextStyle {
+    //! Font specification
+    *hash<auto> font;
+
+    //! Text color
+    *hash<auto> color;
+
+    //! Horizontal alignment: "left" (default), "center", "right"
+    /** @see PdfDataProvider::PdfTextAlignment
+    */
+    *string align;
+
+    //! Vertical alignment: "top" (default), "middle", "bottom"
+    /** @see PdfDataProvider::PdfVerticalAlignment
+    */
+    *string valign;
+
+    //! Enable underline
+    *bool underline;
+
+    //! Enable strikethrough
+    *bool strikethrough;
+
+    //! Line height multiplier (default: 1.2)
+    *float line_height;
+
+    //! Character spacing in points
+    *float char_spacing;
+
+    //! Render mode: "fill" (default), "stroke", "fill_stroke"
+    /** @see PdfDataProvider::PdfRenderMode
+    */
+    *string render_mode;
+
+    //! Stroke color for stroke/fill_stroke modes
+    *hash<auto> stroke_color;
+
+    //! Stroke width in points
+    *float stroke_width;
+}
+
+//! Font specification for PDF text
+/**
+    Specifies font properties for text drawing.
+*/
+hashdecl Qore::Pdf::PdfFontSpec {
+    //! Font family: "Helvetica", "Times-Roman", "Courier", etc.
+    *string family;
+
+    //! Font size in points (default: 12)
+    *float size;
+
+    //! Path to custom TrueType/OpenType font file
+    *string font_path;
+
+    //! Enable bold style
+    *bool bold;
+
+    //! Enable italic style
+    *bool italic;
+}
+
+//! A PDF editor for modifying existing PDF documents
+/**
+    Allows adding images and text to existing PDF documents.
+
+    @since %pdf 1.0
+*/
+qclass PdfEditor [arg=QorePdfEditor* editor; ns=Qore::Pdf];
+
+//! Creates a new PDF editor from a file path
+/**
+    @param path path to the existing PDF file
+    @param password optional password for encrypted PDFs
+
+    @throw PDF-ERROR if the file cannot be loaded
+*/
+PdfEditor::constructor(string path, *string password) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return;
+    }
+    std::string pwd = password ? password->c_str() : "";
+    ReferenceHolder<QorePdfEditor> holder(new QorePdfEditor(path->c_str(), pwd, xsink), xsink);
+    if (*xsink) {
+        return;
+    }
+    self->setPrivate(CID_PDFEDITOR, holder.release());
+}
+
+//! Creates a new PDF editor from binary data
+/**
+    @param data binary PDF data
+    @param password optional password for encrypted PDFs
+
+    @throw PDF-ERROR if the data cannot be parsed
+*/
+PdfEditor::constructor(binary data, *string password) {
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return;
+    }
+    std::string pwd = password ? password->c_str() : "";
+    ReferenceHolder<QorePdfEditor> holder(new QorePdfEditor(data, pwd, xsink), xsink);
+    if (*xsink) {
+        return;
+    }
+    self->setPrivate(CID_PDFEDITOR, holder.release());
+}
+
+//! Returns the number of pages in the document
+/**
+    @return the number of pages
+*/
+int PdfEditor::pageCount() {
+    return editor->pageCount();
+}
+
+//! Returns the dimensions of a page
+/**
+    @param page_index zero-based page index
+
+    @return hash with "width" and "height" in points
+
+    @throw PDF-ERROR if page index is out of range
+*/
+hash<auto> PdfEditor::getPageDimensions(int page_index) {
+    return editor->getPageDimensions(page_index, xsink);
+}
+
+//! Draws an image from a file path onto a page
+/**
+    @param page_index zero-based page index
+    @param image_path path to image file (PNG, JPEG)
+    @param x x coordinate in points (PDF coordinate system, bottom-left origin)
+    @param y y coordinate in points (PDF coordinate system, bottom-left origin)
+    @param width target width in points (0 = auto from height or original)
+    @param height target height in points (0 = auto from width or original)
+    @param rotation rotation in degrees (0, 90, 180, 270)
+    @param opacity opacity value 0.0-1.0
+
+    @throw PDF-ERROR if the image cannot be drawn
+*/
+nothing PdfEditor::drawImage(int page_index, string image_path, float x, float y,
+        float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0)
+        [dom=FILESYSTEM] {
+    if (!image_path || image_path->empty()) {
+        xsink->raiseException("PDF-ERROR", "image_path is required");
+        return QoreValue();
+    }
+    editor->drawImage(page_index, image_path->c_str(), x, y, width, height, rotation, opacity, xsink);
+}
+
+//! Draws an image from binary data onto a page
+/**
+    @param page_index zero-based page index
+    @param image_data binary image data (PNG, JPEG)
+    @param x x coordinate in points (PDF coordinate system, bottom-left origin)
+    @param y y coordinate in points (PDF coordinate system, bottom-left origin)
+    @param width target width in points (0 = auto from height or original)
+    @param height target height in points (0 = auto from width or original)
+    @param rotation rotation in degrees (0, 90, 180, 270)
+    @param opacity opacity value 0.0-1.0
+
+    @throw PDF-ERROR if the image cannot be drawn
+*/
+nothing PdfEditor::drawImageFromData(int page_index, binary image_data, float x, float y,
+        float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0) {
+    if (!image_data || image_data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "image_data is required");
+        return QoreValue();
+    }
+    editor->drawImageFromData(page_index, image_data, x, y, width, height, rotation, opacity, xsink);
+}
+
+//! Draws styled text onto a page
+/**
+    @param page_index zero-based page index
+    @param text text string to draw
+    @param x x coordinate in points (PDF coordinate system, bottom-left origin)
+    @param y y coordinate in points (PDF coordinate system, bottom-left origin)
+    @param style hash with style options (font, color, align, etc.)
+    @param rotation rotation in degrees
+    @param opacity opacity value 0.0-1.0
+
+    @throw PDF-ERROR if the text cannot be drawn
+*/
+nothing PdfEditor::drawText(int page_index, string text, float x, float y,
+        *hash<PdfTextStyle> style, float rotation = 0.0, float opacity = 1.0) {
+    if (!text) {
+        xsink->raiseException("PDF-ERROR", "text is required");
+        return QoreValue();
+    }
+    editor->drawText(page_index, text->c_str(), x, y, style, rotation, opacity, xsink);
+}
+
+//! Sets font options for text drawing
+/**
+    @param opts hash with font options (embed, subset, prefer_non_cid)
+*/
+nothing PdfEditor::setFontOptions(hash<PdfFontOptions> opts) {
+    editor->setFontOptions(opts, xsink);
+}
+
+//! Saves the document to a file
+/**
+    @param path output file path
+
+    @throw PDF-ERROR if the document cannot be saved
+*/
+nothing PdfEditor::save(string path) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return QoreValue();
+    }
+    editor->save(path->c_str(), xsink);
+}
+
+//! Saves the document to memory
+/**
+    @return binary PDF data
+
+    @throw PDF-ERROR if the document cannot be saved
+*/
+binary PdfEditor::saveToMemory() {
+    return editor->saveToMemory(xsink);
+}
+
+//! Gets dimensions of an image file
+/**
+    @param path path to image file
+
+    @return hash with "width" and "height" in pixels
+
+    @throw PDF-ERROR if the image cannot be read
+*/
+static hash<auto> PdfEditor::getImageDimensions(string path) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return QoreValue();
+    }
+    return QorePdfEditor::getImageDimensions(path->c_str(), xsink);
+}
+
+//! Gets dimensions of image data
+/**
+    @param data binary image data
+
+    @return hash with "width" and "height" in pixels
+
+    @throw PDF-ERROR if the image cannot be read
+*/
+static hash<auto> PdfEditor::getImageDimensionsFromData(binary data) {
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return QoreValue();
+    }
+    return QorePdfEditor::getImageDimensionsFromData(data, xsink);
+}
+
+// ========== Form Field Operations ==========
+
+//! Returns a list of all form fields in the document
+/**
+    @return list of hashes with field information including:
+    - \c name: field name (hierarchical)
+    - \c type: field type ("text", "checkbox", "combo", "list", "button", "signature")
+    - \c value: current value (for text fields)
+    - \c checked: boolean (for checkboxes)
+    - \c selected_index: integer (for combo/list)
+    - \c options: list of strings (for combo/list)
+    - \c read_only: boolean
+    - \c required: boolean
+    - \c rect: hash with x, y, width, height
+
+    @throw PDF-ERROR if document is not loaded
+*/
+list<hash<auto>> PdfEditor::getFormFields() {
+    return editor->getFormFields(xsink);
+}
+
+//! Gets the value of a form field by name
+/**
+    @param name the field name (can be hierarchical like "form.field1")
+
+    @return the field value:
+    - string for text fields
+    - boolean for checkboxes
+    - integer for combo/list (selected index)
+
+    @throw PDF-ERROR if field is not found or document is not loaded
+*/
+auto PdfEditor::getFormFieldValue(string name) {
+    if (!name || name->empty()) {
+        xsink->raiseException("PDF-ERROR", "field name is required");
+        return QoreValue();
+    }
+    return editor->getFormFieldValue(name->c_str(), xsink);
+}
+
+//! Sets the value of a form field by name
+/**
+    @param name the field name
+    @param value the value to set (type depends on field type)
+
+    @throw PDF-ERROR if field is not found or document is not loaded
+*/
+nothing PdfEditor::setFormFieldValue(string name, auto value) {
+    if (!name || name->empty()) {
+        xsink->raiseException("PDF-ERROR", "field name is required");
+        return QoreValue();
+    }
+    editor->setFormFieldValue(name->c_str(), value, xsink);
+}
+
+//! Creates a new form field
+/**
+    @param name field name
+    @param type field type: "text", "checkbox", "combo", "list", "button", "signature"
+    @param page_index zero-based page index
+    @param x x coordinate in points
+    @param y y coordinate in points
+    @param width field width in points
+    @param height field height in points
+    @param options optional hash with field configuration:
+    - \c default_value: initial value (for text)
+    - \c max_length: maximum text length (for text)
+    - \c multiline: boolean (for text)
+    - \c password: boolean (for text)
+    - \c checked: initial state (for checkbox)
+    - \c options: list of strings (for combo/list)
+    - \c selected_index: initial selection (for combo/list)
+    - \c caption: button text (for button)
+    - \c read_only: boolean
+    - \c required: boolean
+
+    @throw PDF-ERROR if parameters are invalid or document is not loaded
+*/
+nothing PdfEditor::createFormField(string name, string type, int page_index,
+        float x, float y, float width, float height, *hash<auto> options) {
+    if (!name || name->empty()) {
+        xsink->raiseException("PDF-ERROR", "field name is required");
+        return QoreValue();
+    }
+    if (!type || type->empty()) {
+        xsink->raiseException("PDF-ERROR", "field type is required");
+        return QoreValue();
+    }
+    editor->createFormField(name->c_str(), type->c_str(), page_index, x, y, width, height,
+                            options, xsink);
+}
+
+//! Flattens form fields, converting them to static content
+/**
+    After flattening, form fields become regular content and are no longer interactive.
+
+    @throw PDF-ERROR if document is not loaded
+*/
+nothing PdfEditor::flattenFormFields() {
+    editor->flattenFormFields(xsink);
+}
+
+// ========== Encryption Operations ==========
+
+//! Sets encryption on the document
+/**
+    @param owner_password the owner password (required for full access)
+    @param user_password optional user password (for restricted access)
+    @param permissions optional hash with permission flags:
+    - \c print: allow printing (default: true)
+    - \c edit: allow editing (default: true)
+    - \c copy: allow copying (default: true)
+    - \c edit_notes: allow annotation editing (default: true)
+    - \c fill_and_sign: allow form filling (default: true)
+    - \c accessible: allow accessibility extraction (default: true)
+    - \c doc_assembly: allow page manipulation (default: true)
+    - \c high_print: allow high-quality printing (default: true)
+    @param algorithm encryption algorithm: "rc4-40", "rc4-128", "aes-128", "aes-256" (default)
+
+    @throw PDF-ERROR if owner password is empty or document is not loaded
+*/
+nothing PdfEditor::setEncryption(string owner_password, *string user_password,
+        *hash<auto> permissions, *string algorithm) {
+    if (!owner_password || owner_password->empty()) {
+        xsink->raiseException("PDF-ERROR", "owner_password is required");
+        return QoreValue();
+    }
+    std::string userPwd = user_password ? user_password->c_str() : "";
+    std::string algo = algorithm ? algorithm->c_str() : "aes-256";
+    editor->setEncryption(userPwd, owner_password->c_str(), permissions, algo, xsink);
+}
+
+//! Removes encryption from the document
+/**
+    The document must have been loaded with the owner password.
+
+    @throw PDF-ERROR if document is not loaded
+*/
+nothing PdfEditor::removeEncryption() {
+    editor->removeEncryption(xsink);
+}
+
+//! Returns whether the document is encrypted
+/**
+    @return true if the document is encrypted
+*/
+bool PdfEditor::isEncrypted() {
+    return editor->isEncrypted();
+}
+
+//! Gets encryption information from a PDF file
+/**
+    @param path path to the PDF file
+    @param password optional password to decrypt
+
+    @return hash with encryption information:
+    - \c encrypted: boolean
+    - \c algorithm: encryption algorithm (if encrypted)
+    - \c key_length: key length in bits (if encrypted)
+    - \c permissions: hash with permission flags (if encrypted)
+
+    @throw PDF-ERROR if file cannot be read
+*/
+static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [dom=FILESYSTEM] {
+    if (!path || path->empty()) {
+        xsink->raiseException("PDF-ERROR", "path is required");
+        return QoreValue();
+    }
+    std::string pwd = password ? password->c_str() : "";
+    return QorePdfEditor::getEncryptionInfo(path->c_str(), pwd, xsink);
+}
+
+// ========== Digital Signature Operations ==========
+
+//! Creates a signature field (placeholder for signing)
+/**
+    @param name field name
+    @param page_index zero-based page index
+    @param x x coordinate in points
+    @param y y coordinate in points
+    @param width field width in points
+    @param height field height in points
+    @param options optional hash with:
+    - \c read_only: boolean
+    - \c required: boolean
+
+    @throw PDF-ERROR if parameters are invalid or document is not loaded
+*/
+nothing PdfEditor::createSignatureField(string name, int page_index,
+        float x, float y, float width, float height, *hash<auto> options) {
+    if (!name || name->empty()) {
+        xsink->raiseException("PDF-ERROR", "field name is required");
+        return QoreValue();
+    }
+    editor->createSignatureField(name->c_str(), page_index, x, y, width, height, options, xsink);
+}
+
+//! Signs the document with a certificate
+/**
+    @param field_name the signature field name to sign
+    @param certificate X.509 certificate data (DER or PEM format)
+    @param private_key private key data (DER or PEM format)
+    @param key_password optional password for encrypted private key
+    @param options optional hash with:
+    - \c reason: signing reason
+    - \c location: signing location
+    - \c signer_name: name of the signer
+    - \c hash_algorithm: "sha256" (default), "sha384", "sha512"
+
+    @throw PDF-ERROR if signing fails or document is not loaded
+
+    @note This method is currently not fully implemented and will raise an error.
+          Full digital signing requires OpenSSL integration.
+*/
+nothing PdfEditor::signDocument(string field_name, binary certificate, binary private_key,
+        *string key_password, *hash<auto> options) {
+    if (!field_name || field_name->empty()) {
+        xsink->raiseException("PDF-ERROR", "field_name is required");
+        return QoreValue();
+    }
+    if (!certificate || certificate->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "certificate is required");
+        return QoreValue();
+    }
+    if (!private_key || private_key->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "private_key is required");
+        return QoreValue();
+    }
+    std::string keyPwd = key_password ? key_password->c_str() : "";
+    editor->signDocument(field_name->c_str(), certificate, private_key, keyPwd, options, xsink);
+}
+
+//! Returns a list of signature fields and their status
+/**
+    @return list of hashes with signature information:
+    - \c name: field name
+    - \c reason: signing reason (if signed)
+    - \c location: signing location (if signed)
+    - \c signer_name: signer name (if signed)
+    - \c date: signing date (if signed)
+    - \c rect: hash with x, y, width, height
+
+    @throw PDF-ERROR if document is not loaded
+*/
+list<hash<auto>> PdfEditor::getSignatures() {
+    return editor->getSignatures(xsink);
+}

@@ -66,6 +66,8 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "output_path is required";
         }
 
+        @debug("creating document: output=%y", request.output_path);
+
         PdfWriter writer();
 
         if (request.font_options) {
@@ -97,15 +99,23 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
                     throw "PDF-ERROR", sprintf("page size must be positive (%.2f x %.2f)", width, height);
                 }
 
-                if (type == "blank") {
+                # Validate page type
+                list<string> valid_types = (
+                    PdfPageType::Blank,
+                    PdfPageType::Text,
+                );
+                if (!inlist(type, valid_types)) {
+                    throw "PDF-ERROR", sprintf("invalid page type %y; allowed values: %y",
+                        page.type, valid_types);
+                }
+
+                if (type == PdfPageType::Blank) {
                     writer.addBlankPage(width, height);
-                } else if (type == "text") {
+                } else if (type == PdfPageType::Text) {
                     if (!page.text) {
                         throw "PDF-ERROR", "text is required for text pages";
                     }
                     writer.addTextPage(page.text, width, height);
-                } else {
-                    throw "PDF-ERROR", sprintf("unknown page type '%s'", page.type);
                 }
             }
         } else if (request.page_count) {
@@ -127,6 +137,8 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
         response.output_path = request.output_path;
         response.page_count = writer.pageCount();
         response.size = hstat(request.output_path).size;
+
+        @debug("document created: pages=%d size=%d", response.page_count, response.size);
 
         return response;
     }

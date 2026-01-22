@@ -1,0 +1,483 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore pdf module - Form field tests
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+%modern
+
+%requires QUnit
+%requires Util
+%requires pdf
+%requires PdfDataProvider
+
+%exec-class PdfFormsTest
+
+public class PdfFormsTest inherits QUnit::Test {
+    private {
+        string testDir;
+        string basePdf;
+    }
+
+    constructor() : Test("PdfFormsTest", "1.0") {
+        testDir = tmp_location() + "/pdf_forms_test_" + string(getpid());
+        basePdf = testDir + "/base.pdf";
+
+        addTestCase("Create text field tests", \createTextFieldTest());
+        addTestCase("Create checkbox field tests", \createCheckboxFieldTest());
+        addTestCase("Create combo box field tests", \createComboBoxFieldTest());
+        addTestCase("Create list box field tests", \createListBoxFieldTest());
+        addTestCase("Get and set field value tests", \getSetFieldValueTest());
+        addTestCase("List form fields tests", \listFormFieldsTest());
+        addTestCase("Data provider list-form-fields tests", \dataProviderListFormFieldsTest());
+        addTestCase("Data provider get-form-data tests", \dataProviderGetFormDataTest());
+        addTestCase("Data provider fill-form tests", \dataProviderFillFormTest());
+        addTestCase("Data provider create-form-field tests", \dataProviderCreateFormFieldTest());
+        addTestCase("Negative tests", \negativeTest());
+        addTestCase("Corner case tests", \cornerCaseTest());
+
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        mkdir(testDir);
+        createBasePdf();
+    }
+
+    globalTearDown() {
+        if (is_dir(testDir)) {
+            system("rm -rf " + testDir);
+        }
+    }
+
+    #! Create test PDF
+    private createBasePdf() {
+        PdfWriter writer();
+        writer.addBlankPage(612.0, 792.0); # Letter size
+        writer.addBlankPage(612.0, 792.0);
+        writer.save(basePdf);
+    }
+
+    createTextFieldTest() {
+        string outPdf = testDir + "/text_field.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a text field
+        editor.createFormField("name", "text", 0, 100.0, 700.0, 200.0, 20.0);
+
+        editor.save(outPdf);
+        assertTrue(is_file(outPdf), "PDF with text field created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+        assertEq(1, fields.size(), "one field found");
+        assertEq("name", fields[0].name, "field name matches");
+        assertEq("text", fields[0].type, "field type is text");
+    }
+
+    createCheckboxFieldTest() {
+        string outPdf = testDir + "/checkbox_field.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a checkbox field
+        editor.createFormField("agree", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+
+        editor.save(outPdf);
+        assertTrue(is_file(outPdf), "PDF with checkbox field created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+        assertEq(1, fields.size(), "one field found");
+        assertEq("agree", fields[0].name, "field name matches");
+        assertEq("checkbox", fields[0].type, "field type is checkbox");
+    }
+
+    createComboBoxFieldTest() {
+        string outPdf = testDir + "/combo_field.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a combo box field with options
+        hash<auto> options = {
+            "options": ("Option 1", "Option 2", "Option 3"),
+        };
+        editor.createFormField("country", "combo", 0, 100.0, 600.0, 150.0, 25.0, options);
+
+        editor.save(outPdf);
+        assertTrue(is_file(outPdf), "PDF with combo box field created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+        assertEq(1, fields.size(), "one field found");
+        assertEq("country", fields[0].name, "field name matches");
+        assertEq("combo", fields[0].type, "field type is combo");
+        assertEq(3, fields[0].options.size(), "combo has 3 options");
+    }
+
+    createListBoxFieldTest() {
+        string outPdf = testDir + "/list_field.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a list box field with options
+        hash<auto> options = {
+            "options": ("Item A", "Item B", "Item C", "Item D"),
+        };
+        editor.createFormField("items", "list", 0, 100.0, 500.0, 150.0, 80.0, options);
+
+        editor.save(outPdf);
+        assertTrue(is_file(outPdf), "PDF with list box field created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+        assertEq(1, fields.size(), "one field found");
+        assertEq("items", fields[0].name, "field name matches");
+        assertEq("list", fields[0].type, "field type is list");
+        assertEq(4, fields[0].options.size(), "list has 4 options");
+    }
+
+    getSetFieldValueTest() {
+        string outPdf = testDir + "/field_values.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create fields
+        editor.createFormField("text_field", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        editor.createFormField("check_field", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+        editor.save(outPdf);
+
+        # Set values
+        PdfEditor editor2(outPdf);
+        editor2.setFormFieldValue("text_field", "Hello World");
+        editor2.setFormFieldValue("check_field", True);
+        editor2.save(outPdf);
+
+        # Read values back
+        PdfEditor editor3(outPdf);
+        auto textValue = editor3.getFormFieldValue("text_field");
+        auto checkValue = editor3.getFormFieldValue("check_field");
+
+        assertEq("Hello World", textValue, "text field value matches");
+        assertEq(True, checkValue, "checkbox value matches");
+    }
+
+    listFormFieldsTest() {
+        string outPdf = testDir + "/list_fields.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create multiple fields
+        editor.createFormField("first_name", "text", 0, 100.0, 700.0, 150.0, 20.0);
+        editor.createFormField("last_name", "text", 0, 260.0, 700.0, 150.0, 20.0);
+        editor.createFormField("subscribe", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+        editor.save(outPdf);
+
+        # List all fields
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+
+        assertEq(3, fields.size(), "three fields found");
+
+        # Check that all fields are present
+        hash<string, bool> fieldNames;
+        foreach hash<auto> field in (fields) {
+            fieldNames{field.name} = True;
+        }
+        assertTrue(fieldNames.hasKey("first_name"), "first_name field found");
+        assertTrue(fieldNames.hasKey("last_name"), "last_name field found");
+        assertTrue(fieldNames.hasKey("subscribe"), "subscribe field found");
+    }
+
+    dataProviderListFormFieldsTest() {
+        string outPdf = testDir + "/dp_list_fields.pdf";
+
+        # Create a PDF with fields
+        PdfEditor editor(basePdf);
+        editor.createFormField("email", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        editor.createFormField("active", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+        editor.save(outPdf);
+
+        # Use data provider to list fields
+        PdfListFormFieldsDataProvider dp();
+        auto response = dp.doRequest({
+            "input_path": outPdf,
+        });
+
+        assertTrue(response.success, "list-form-fields success");
+        assertEq(2, response.field_count, "two fields found");
+        assertEq(2, response.fields.size(), "fields list has 2 items");
+    }
+
+    dataProviderGetFormDataTest() {
+        string outPdf = testDir + "/dp_get_data.pdf";
+
+        # Create a PDF with fields and set values
+        PdfEditor editor(basePdf);
+        editor.createFormField("username", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        editor.createFormField("remember", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+        editor.save(outPdf);
+
+        PdfEditor editor2(outPdf);
+        editor2.setFormFieldValue("username", "testuser");
+        editor2.setFormFieldValue("remember", True);
+        editor2.save(outPdf);
+
+        # Use data provider to get form data
+        PdfGetFormDataDataProvider dp();
+        auto response = dp.doRequest({
+            "input_path": outPdf,
+        });
+
+        assertTrue(response.success, "get-form-data success");
+        assertEq(2, response.field_count, "two fields in data");
+        assertEq("testuser", response.data.username, "username value matches");
+        assertEq(True, response.data.remember, "remember value matches");
+
+        # Test getting specific fields only
+        response = dp.doRequest({
+            "input_path": outPdf,
+            "fields": ("username",),
+        });
+
+        assertEq(1, response.field_count, "one field when filtered");
+        assertTrue(response.data.hasKey("username"), "username in filtered data");
+        assertFalse(response.data.hasKey("remember"), "remember not in filtered data");
+    }
+
+    dataProviderFillFormTest() {
+        string inputPdf = testDir + "/dp_fill_input.pdf";
+        string outPdf = testDir + "/dp_fill_output.pdf";
+
+        # Create a PDF with fields
+        PdfEditor editor(basePdf);
+        editor.createFormField("first_name", "text", 0, 100.0, 700.0, 150.0, 20.0);
+        editor.createFormField("last_name", "text", 0, 260.0, 700.0, 150.0, 20.0);
+        editor.createFormField("agreed", "checkbox", 0, 100.0, 650.0, 20.0, 20.0);
+        editor.save(inputPdf);
+
+        # Use data provider to fill form
+        PdfFillFormDataProvider dp();
+        auto response = dp.doRequest({
+            "input_path": inputPdf,
+            "output_path": outPdf,
+            "data": {
+                "first_name": "John",
+                "last_name": "Doe",
+                "agreed": True,
+            },
+        });
+
+        assertTrue(response.success, "fill-form success");
+        assertEq(outPdf, response.output_path, "output path matches");
+        assertEq(3, response.fields_filled, "three fields filled");
+        assertTrue(response.size > 0, "output size > 0");
+
+        # Verify values were set
+        PdfEditor editor2(outPdf);
+        assertEq("John", editor2.getFormFieldValue("first_name"), "first_name filled");
+        assertEq("Doe", editor2.getFormFieldValue("last_name"), "last_name filled");
+        assertEq(True, editor2.getFormFieldValue("agreed"), "agreed filled");
+    }
+
+    dataProviderCreateFormFieldTest() {
+        string outPdf = testDir + "/dp_create_field.pdf";
+
+        # Use data provider to create a form field
+        PdfCreateFormFieldDataProvider dp();
+        auto response = dp.doRequest(<PdfCreateFormFieldRequest>{
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "field": <PdfFormFieldSpec>{
+                "name": "dp_field",
+                "type": "text",
+                "page": 0,
+                "x": 100.0,
+                "y": 700.0,
+                "width": 200.0,
+                "height": 20.0,
+            },
+        });
+
+        assertTrue(response.success, "create-form-field success");
+        assertEq(1, response.fields_created, "one field created");
+
+        # Verify field was created
+        PdfEditor editor(outPdf);
+        list<hash<auto>> fields = editor.getFormFields();
+        assertEq(1, fields.size(), "one field found");
+        assertEq("dp_field", fields[0].name, "field name matches");
+
+        # Test creating multiple fields
+        string outPdf2 = testDir + "/dp_create_multi.pdf";
+        response = dp.doRequest(<PdfCreateFormFieldRequest>{
+            "input_path": basePdf,
+            "output_path": outPdf2,
+            "fields": (
+                <PdfFormFieldSpec>{
+                    "name": "field1",
+                    "type": "text",
+                    "page": 0,
+                    "x": 100.0,
+                    "y": 700.0,
+                    "width": 150.0,
+                    "height": 20.0,
+                },
+                <PdfFormFieldSpec>{
+                    "name": "field2",
+                    "type": "checkbox",
+                    "page": 0,
+                    "x": 100.0,
+                    "y": 650.0,
+                    "width": 20.0,
+                    "height": 20.0,
+                },
+            ),
+        });
+
+        assertTrue(response.success, "create multiple fields success");
+        assertEq(2, response.fields_created, "two fields created");
+    }
+
+    negativeTest() {
+        # Test getting value for non-existent field
+        PdfEditor editor(basePdf);
+
+        bool thrown = False;
+        try {
+            editor.getFormFieldValue("nonexistent_field");
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "non-existent field throws PDF-ERROR");
+        }
+        assertTrue(thrown, "getting non-existent field throws");
+
+        # Test setting value for non-existent field
+        thrown = False;
+        try {
+            editor.setFormFieldValue("nonexistent_field", "value");
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "setting non-existent field throws PDF-ERROR");
+        }
+        assertTrue(thrown, "setting non-existent field throws");
+
+        # Test creating field with invalid type
+        thrown = False;
+        try {
+            editor.createFormField("bad_field", "invalid_type", 0, 100.0, 100.0, 100.0, 20.0);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid field type throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid field type throws");
+
+        # Test creating field on invalid page
+        thrown = False;
+        try {
+            editor.createFormField("bad_page", "text", 999, 100.0, 100.0, 100.0, 20.0);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid page throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid page throws");
+
+        # Test data provider with missing required fields
+        PdfListFormFieldsDataProvider dp();
+        thrown = False;
+        try {
+            dp.doRequest({});
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing input_path throws");
+    }
+
+    cornerCaseTest() {
+        # Test creating field on second page
+        string outPdf = testDir + "/second_page_field.pdf";
+
+        PdfEditor editor(basePdf);
+        editor.createFormField("page2_field", "text", 1, 100.0, 700.0, 200.0, 20.0);
+        editor.save(outPdf);
+
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> fields = editor2.getFormFields();
+        assertEq(1, fields.size(), "field on second page found");
+
+        # Test overwrite mode for fill-form
+        string overwritePdf = testDir + "/overwrite_form.pdf";
+
+        PdfEditor editor3(basePdf);
+        editor3.createFormField("overwrite_field", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        editor3.save(overwritePdf);
+
+        PdfFillFormDataProvider dp();
+        auto response = dp.doRequest({
+            "input_path": overwritePdf,
+            "overwrite": True,
+            "data": {
+                "overwrite_field": "Overwritten Value",
+            },
+        });
+
+        assertTrue(response.success, "overwrite mode success");
+        assertEq(overwritePdf, response.output_path, "output path is input path");
+
+        # Test empty form (no fields)
+        PdfEditor editor4(basePdf);
+        list<hash<auto>> emptyFields = editor4.getFormFields();
+        assertEq(0, emptyFields.size(), "no fields in base PDF");
+
+        # Test field name with underscores (should work)
+        string underscorePdf = testDir + "/underscore_name.pdf";
+        PdfEditor editor5(basePdf);
+        editor5.createFormField("field_with_underscores", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        editor5.save(underscorePdf);
+
+        PdfEditor editor6(underscorePdf);
+        list<hash<auto>> underscoreFields = editor6.getFormFields();
+        assertEq(1, underscoreFields.size(), "field with underscore name found");
+
+        # Test field name with dots (should fail - PoDoFo limitation)
+        PdfEditor editor7(basePdf);
+        bool thrown = False;
+        try {
+            editor7.createFormField("field.with.dots", "text", 0, 100.0, 700.0, 200.0, 20.0);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+        }
+        assertTrue(thrown, "field with dots throws");
+    }
+}

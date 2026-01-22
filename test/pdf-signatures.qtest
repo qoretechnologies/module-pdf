@@ -1,0 +1,319 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore pdf module - Digital signature tests
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%new-style
+%strict-args
+%require-types
+%enable-all-warnings
+%modern
+
+%requires QUnit
+%requires Util
+%requires pdf
+%requires PdfDataProvider
+
+%exec-class PdfSignaturesTest
+
+public class PdfSignaturesTest inherits QUnit::Test {
+    private {
+        string testDir;
+        string basePdf;
+    }
+
+    constructor() : Test("PdfSignaturesTest", "1.0") {
+        testDir = tmp_location() + "/pdf_signatures_test_" + string(getpid());
+        basePdf = testDir + "/base.pdf";
+
+        addTestCase("Create signature field tests", \createSignatureFieldTest());
+        addTestCase("List signatures tests", \listSignaturesTest());
+        addTestCase("Signature field options tests", \signatureFieldOptionsTest());
+        addTestCase("Data provider create-signature-field tests", \dataProviderCreateSignatureFieldTest());
+        addTestCase("Data provider list-signatures tests", \dataProviderListSignaturesTest());
+        addTestCase("Negative tests", \negativeTest());
+        addTestCase("Corner case tests", \cornerCaseTest());
+
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        mkdir(testDir);
+        createBasePdf();
+    }
+
+    globalTearDown() {
+        if (is_dir(testDir)) {
+            system("rm -rf " + testDir);
+        }
+    }
+
+    #! Create test PDF
+    private createBasePdf() {
+        PdfWriter writer();
+        writer.addBlankPage(612.0, 792.0);
+        writer.addBlankPage(612.0, 792.0);
+        writer.save(basePdf);
+    }
+
+    createSignatureFieldTest() {
+        string outPdf = testDir + "/with_sig_field.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a signature field
+        editor.createSignatureField("signature1", 0, 100.0, 100.0, 200.0, 50.0);
+        editor.save(outPdf);
+
+        assertTrue(is_file(outPdf), "PDF with signature field created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> sigs = editor2.getSignatures();
+        assertEq(1, sigs.size(), "one signature field found");
+        assertEq("signature1", sigs[0].name, "signature field name matches");
+    }
+
+    listSignaturesTest() {
+        string outPdf = testDir + "/list_sigs.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create multiple signature fields
+        editor.createSignatureField("sig1", 0, 100.0, 100.0, 150.0, 40.0);
+        editor.createSignatureField("sig2", 0, 300.0, 100.0, 150.0, 40.0);
+        editor.createSignatureField("sig3", 1, 100.0, 100.0, 150.0, 40.0);
+        editor.save(outPdf);
+
+        # List all signature fields
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> sigs = editor2.getSignatures();
+
+        assertEq(3, sigs.size(), "three signature fields found");
+
+        # Check field names
+        hash<string, bool> sigNames;
+        foreach hash<auto> sig in (sigs) {
+            sigNames{sig.name} = True;
+        }
+        assertTrue(sigNames.hasKey("sig1"), "sig1 found");
+        assertTrue(sigNames.hasKey("sig2"), "sig2 found");
+        assertTrue(sigNames.hasKey("sig3"), "sig3 found");
+    }
+
+    signatureFieldOptionsTest() {
+        string outPdf = testDir + "/sig_options.pdf";
+
+        PdfEditor editor(basePdf);
+
+        # Create a signature field with options
+        hash<auto> options = {
+            "signer_name": "John Doe",
+            "reason": "Document approval",
+            "location": "New York",
+        };
+        editor.createSignatureField("signed_by_john", 0, 100.0, 100.0, 200.0, 50.0, options);
+        editor.save(outPdf);
+
+        assertTrue(is_file(outPdf), "PDF with signature field options created");
+
+        # Verify field was created
+        PdfEditor editor2(outPdf);
+        list<hash<auto>> sigs = editor2.getSignatures();
+        assertEq(1, sigs.size(), "one signature field found");
+        assertEq("signed_by_john", sigs[0].name, "field name matches");
+
+        # The metadata may or may not be available depending on implementation
+        # Just verify the field exists with correct name
+    }
+
+    dataProviderCreateSignatureFieldTest() {
+        string outPdf = testDir + "/dp_sig_field.pdf";
+
+        PdfCreateDigitalSignatureFieldDataProvider dp();
+        auto response = dp.doRequest(<PdfCreateDigitalSignatureFieldRequest>{
+            "input_path": basePdf,
+            "output_path": outPdf,
+            "field": <PdfDigitalSignatureFieldSpec>{
+                "name": "dp_signature",
+                "page": 0,
+                "x": 100.0,
+                "y": 100.0,
+                "width": 200.0,
+                "height": 50.0,
+                "signer_name": "Jane Smith",
+                "reason": "Approval",
+                "location": "Boston",
+            },
+        });
+
+        assertTrue(response.success, "create-signature-field success");
+        assertEq(outPdf, response.output_path, "output path matches");
+        assertEq("dp_signature", response.field_name, "field name matches");
+        assertTrue(response.size > 0, "output size > 0");
+
+        # Verify field was created
+        PdfEditor editor(outPdf);
+        list<hash<auto>> sigs = editor.getSignatures();
+        assertEq(1, sigs.size(), "one signature field found");
+    }
+
+    dataProviderListSignaturesTest() {
+        string outPdf = testDir + "/dp_list_sigs.pdf";
+
+        # Create a PDF with signature fields
+        PdfEditor editor(basePdf);
+        editor.createSignatureField("list_sig1", 0, 100.0, 100.0, 150.0, 40.0);
+        editor.createSignatureField("list_sig2", 1, 100.0, 100.0, 150.0, 40.0);
+        editor.save(outPdf);
+
+        PdfListSignaturesDataProvider dp();
+        auto response = dp.doRequest(<PdfListSignaturesRequest>{
+            "input_path": outPdf,
+        });
+
+        assertTrue(response.success, "list-signatures success");
+        assertEq(2, response.signature_count, "two signatures found");
+        assertEq(2, response.signatures.size(), "signatures list has 2 items");
+    }
+
+    negativeTest() {
+        # Test creating signature field on invalid page
+        PdfEditor editor(basePdf);
+
+        bool thrown = False;
+        try {
+            editor.createSignatureField("bad_page_sig", 999, 100.0, 100.0, 200.0, 50.0);
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "invalid page throws PDF-ERROR");
+        }
+        assertTrue(thrown, "invalid page throws");
+
+        # Test data provider with missing field spec
+        PdfCreateDigitalSignatureFieldDataProvider dp();
+        thrown = False;
+        try {
+            dp.doRequest({
+                "input_path": basePdf,
+                "output_path": testDir + "/should_fail.pdf",
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing field throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing field throws");
+
+        # Test data provider with missing field name
+        # Type system catches missing required 'name' field in PdfDigitalSignatureFieldSpec
+        thrown = False;
+        try {
+            dp.doRequest({
+                "input_path": basePdf,
+                "output_path": testDir + "/should_fail.pdf",
+                "field": {
+                    "page": 0,
+                    "x": 100.0,
+                    "y": 100.0,
+                    "width": 200.0,
+                    "height": 50.0,
+                },
+            });
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            # Can be RUNTIME-TYPE-ERROR (type validation) or PDF-ERROR (manual validation)
+            assertTrue(ex.err == "PDF-ERROR" || ex.err == "RUNTIME-TYPE-ERROR",
+                "missing field name throws error");
+        }
+        assertTrue(thrown, "missing field name throws");
+
+        # Test list-signatures with missing input_path
+        PdfListSignaturesDataProvider dp2();
+        thrown = False;
+        try {
+            dp2.doRequest({});
+        } catch (hash<ExceptionInfo> ex) {
+            thrown = True;
+            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+        }
+        assertTrue(thrown, "missing input_path throws");
+    }
+
+    cornerCaseTest() {
+        # Test PDF with no signature fields
+        PdfEditor editor(basePdf);
+        list<hash<auto>> sigs = editor.getSignatures();
+        assertEq(0, sigs.size(), "no signatures in base PDF");
+
+        # Test overwrite mode
+        string overwritePdf = testDir + "/overwrite_sig.pdf";
+
+        # Copy base PDF
+        {
+            binary data = ReadOnlyFile::readBinaryFile(basePdf);
+            File f();
+            f.open(overwritePdf, O_CREAT | O_WRONLY | O_TRUNC);
+            f.write(data);
+        }
+
+        PdfCreateDigitalSignatureFieldDataProvider dp();
+        auto response = dp.doRequest(<PdfCreateDigitalSignatureFieldRequest>{
+            "input_path": overwritePdf,
+            "overwrite": True,
+            "field": <PdfDigitalSignatureFieldSpec>{
+                "name": "overwrite_sig",
+                "page": 0,
+                "x": 100.0,
+                "y": 100.0,
+                "width": 150.0,
+                "height": 40.0,
+            },
+        });
+
+        assertTrue(response.success, "overwrite mode success");
+        assertEq(overwritePdf, response.output_path, "output path is input path");
+
+        # Test creating signature field at edge of page
+        string edgePdf = testDir + "/edge_sig.pdf";
+        PdfEditor editor2(basePdf);
+        editor2.createSignatureField("edge_sig", 0, 0.0, 0.0, 100.0, 30.0);
+        editor2.save(edgePdf);
+
+        PdfEditor editor3(edgePdf);
+        list<hash<auto>> edgeSigs = editor3.getSignatures();
+        assertEq(1, edgeSigs.size(), "edge signature field found");
+
+        # Test signature field on last page
+        string lastPagePdf = testDir + "/last_page_sig.pdf";
+        PdfEditor editor4(basePdf);
+        int lastPage = editor4.pageCount() - 1;
+        editor4.createSignatureField("last_page_sig", lastPage, 100.0, 100.0, 150.0, 40.0);
+        editor4.save(lastPagePdf);
+
+        PdfEditor editor5(lastPagePdf);
+        list<hash<auto>> lastPageSigs = editor5.getSignatures();
+        assertEq(1, lastPageSigs.size(), "signature on last page found");
+    }
+}

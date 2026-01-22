@@ -1,4 +1,5 @@
 /* -*- mode: c++; indent-tabs-mode: nil -*- */
+/** @file QC_PdfEditor.h PdfEditor Qore class header */
 /*
     Qore pdf module
 
@@ -23,25 +24,14 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef QORE_PDF_MODULE_H
-#define QORE_PDF_MODULE_H
+#ifndef _QORE_PDF_QC_PDFEDITOR_H
+#define _QORE_PDF_QC_PDFEDITOR_H
 
-#include <qore/Qore.h>
+#include "pdf-module.h"
 
-extern const TypedHashDecl* hashdeclPdfMetadata;
-extern const TypedHashDecl* hashdeclPdfRenderResult;
-extern const TypedHashDecl* hashdeclPdfFontOptions;
-extern const TypedHashDecl* hashdeclPdfPosition;
-extern const TypedHashDecl* hashdeclPdfColor;
-extern const TypedHashDecl* hashdeclPdfTextStyle;
-extern const TypedHashDecl* hashdeclPdfFontSpec;
+DLLLOCAL extern qore_classid_t CID_PDFEDITOR;
+DLLLOCAL extern QoreClass* QC_PDFEDITOR;
 
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfMetadata(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfRenderResult(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfFontOptions(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfPosition(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfColor(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfTextStyle(QoreNamespace& ns);
-DLLLOCAL TypedHashDecl* init_hashdecl_PdfFontSpec(QoreNamespace& ns);
+DLLLOCAL QoreClass* initPdfEditorClass(QoreNamespace& ns);
 
 #endif

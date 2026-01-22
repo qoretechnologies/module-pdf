@@ -74,10 +74,14 @@ public class PdfExtractTextDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "page_index must be non-negative";
         }
 
+        @debug("extracting text: input=%y page=%d", request.input_path, request.page_index);
+
         string text = PdfRenderer::extractText(request.input_path, request.page_index);
 
         hash<PdfExtractTextResponse> response();
         response.text = text;
+
+        @debug("text extracted: length=%d", text.size());
 
         return response;
     }

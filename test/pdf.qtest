@@ -29,6 +29,7 @@
 %strict-args
 %require-types
 %enable-all-warnings
+%modern
 
 %requires QUnit
 %requires Util

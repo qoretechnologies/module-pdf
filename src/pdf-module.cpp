@@ -30,6 +30,7 @@
 #include "QC_PdfWriter.h"
 #include "QC_PdfRenderer.h"
 #include "QC_PdfPage.h"
+#include "QC_PdfEditor.h"
 
 static QoreStringNode* pdf_module_init();
 static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns);
@@ -51,6 +52,10 @@ DLLEXPORT char qore_module_license_str[] = "MIT";
 const TypedHashDecl* hashdeclPdfMetadata = nullptr;
 const TypedHashDecl* hashdeclPdfRenderResult = nullptr;
 const TypedHashDecl* hashdeclPdfFontOptions = nullptr;
+const TypedHashDecl* hashdeclPdfPosition = nullptr;
+const TypedHashDecl* hashdeclPdfColor = nullptr;
+const TypedHashDecl* hashdeclPdfTextStyle = nullptr;
+const TypedHashDecl* hashdeclPdfFontSpec = nullptr;
 
 QoreNamespace PdfNs("Qore::Pdf");
 
@@ -58,12 +63,17 @@ static QoreStringNode* pdf_module_init() {
     hashdeclPdfMetadata = init_hashdecl_PdfMetadata(PdfNs);
     hashdeclPdfRenderResult = init_hashdecl_PdfRenderResult(PdfNs);
     hashdeclPdfFontOptions = init_hashdecl_PdfFontOptions(PdfNs);
+    hashdeclPdfFontSpec = init_hashdecl_PdfFontSpec(PdfNs);
+    hashdeclPdfPosition = init_hashdecl_PdfPosition(PdfNs);
+    hashdeclPdfColor = init_hashdecl_PdfColor(PdfNs);
+    hashdeclPdfTextStyle = init_hashdecl_PdfTextStyle(PdfNs);
 
     PdfNs.addSystemClass(initPdfDocumentClass(PdfNs));
     PdfNs.addSystemClass(initPdfPageClass(PdfNs));
     PdfNs.addSystemClass(initPdfReaderClass(PdfNs));
     PdfNs.addSystemClass(initPdfWriterClass(PdfNs));
     PdfNs.addSystemClass(initPdfRendererClass(PdfNs));
+    PdfNs.addSystemClass(initPdfEditorClass(PdfNs));
 
     return nullptr;
 }

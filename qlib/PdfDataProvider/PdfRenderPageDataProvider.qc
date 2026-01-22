@@ -82,6 +82,8 @@ public class PdfRenderPageDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "dpi must be positive";
         }
 
+        @debug("rendering page: input=%y page=%d dpi=%d", request.input_path, request.page_index, dpi);
+
         hash<PdfRenderResult> result = PdfRenderer::renderPage(request.input_path, request.page_index, dpi);
 
         *string output_path = request.output_path;
@@ -104,6 +106,8 @@ public class PdfRenderPageDataProvider inherits AbstractDataProvider {
             response.data = result.data;
             response.size = result.data.size();
         }
+
+        @debug("render complete: %dx%d size=%d", response.width, response.height, response.size);
 
         return response;
     }

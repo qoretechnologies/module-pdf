@@ -55,6 +55,24 @@ public class PdfDocumentDataProvider inherits AbstractDataProvider {
             "merge": "PdfDataProvider::PdfMergeDocumentDataProvider",
             "split": "PdfDataProvider::PdfSplitDocumentDataProvider",
             "rotate": "PdfDataProvider::PdfRotatePagesDataProvider",
+            "add-image": "PdfDataProvider::PdfAddImageDataProvider",
+            "add-text": "PdfDataProvider::PdfAddTextDataProvider",
+            "add-watermark": "PdfDataProvider::PdfAddWatermarkDataProvider",
+            "add-signature-field": "PdfDataProvider::PdfAddSignatureFieldDataProvider",
+            # Form field operations
+            "list-form-fields": "PdfDataProvider::PdfListFormFieldsDataProvider",
+            "get-form-data": "PdfDataProvider::PdfGetFormDataDataProvider",
+            "fill-form": "PdfDataProvider::PdfFillFormDataProvider",
+            "create-form-field": "PdfDataProvider::PdfCreateFormFieldDataProvider",
+            # Encryption operations
+            "encrypt": "PdfDataProvider::PdfEncryptDataProvider",
+            "decrypt": "PdfDataProvider::PdfDecryptDataProvider",
+            "get-encryption-info": "PdfDataProvider::PdfGetEncryptionInfoDataProvider",
+            # Digital signature operations
+            "create-signature-field": "PdfDataProvider::PdfCreateDigitalSignatureFieldDataProvider",
+            # NOTE: sign action disabled until OpenSSL integration is complete
+            # "sign": "PdfDataProvider::PdfSignDataProvider",
+            "list-signatures": "PdfDataProvider::PdfListSignaturesDataProvider",
         };
         *hash<auto> opts;
     }

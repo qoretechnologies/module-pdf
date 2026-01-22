@@ -115,6 +115,150 @@ module PdfDataProvider {
             "action_code": DPAT_API,
         });
 
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/add-image",
+            "action": "add-image",
+            "display_name": "Add Image",
+            "short_desc": "Add images to PDF pages",
+            "desc": "Add PNG, JPEG, or TIFF images to PDF pages with positioning, scaling, and rotation",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/add-text",
+            "action": "add-text",
+            "display_name": "Add Text",
+            "short_desc": "Add styled text to PDF pages",
+            "desc": "Add text to PDF pages with font, color, alignment, and rotation options",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/add-watermark",
+            "action": "add-watermark",
+            "display_name": "Add Watermark",
+            "short_desc": "Add watermarks to PDF pages",
+            "desc": "Add text or image watermarks to PDF pages with opacity, rotation, and tiling options",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/add-signature-field",
+            "action": "add-signature-field",
+            "display_name": "Add Signature Field",
+            "short_desc": "Add signature placeholders",
+            "desc": "Add signature placeholders to PDF pages with optional image, label, and line",
+            "action_code": DPAT_API,
+        });
+
+        # Form field actions
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/list-form-fields",
+            "action": "list-form-fields",
+            "display_name": "List Form Fields",
+            "short_desc": "List all form fields in a PDF",
+            "desc": "List all form fields with their names, types, values, and properties",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/get-form-data",
+            "action": "get-form-data",
+            "display_name": "Get Form Data",
+            "short_desc": "Get form field values",
+            "desc": "Get values from all or selected form fields",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/fill-form",
+            "action": "fill-form",
+            "display_name": "Fill Form",
+            "short_desc": "Fill form field values",
+            "desc": "Fill form fields with values and optionally flatten to static content",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/create-form-field",
+            "action": "create-form-field",
+            "display_name": "Create Form Field",
+            "short_desc": "Create new form fields",
+            "desc": "Create text, checkbox, combo, list, radio, or button form fields",
+            "action_code": DPAT_API,
+        });
+
+        # Encryption actions
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/encrypt",
+            "action": "encrypt",
+            "display_name": "Encrypt PDF",
+            "short_desc": "Encrypt a PDF with password",
+            "desc": "Encrypt a PDF document with owner and user passwords and permission restrictions",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/decrypt",
+            "action": "decrypt",
+            "display_name": "Decrypt PDF",
+            "short_desc": "Remove encryption from a PDF",
+            "desc": "Remove encryption from a PDF document using the owner password",
+            "action_code": DPAT_API,
+        });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/get-encryption-info",
+            "action": "get-encryption-info",
+            "display_name": "Get Encryption Info",
+            "short_desc": "Get PDF encryption information",
+            "desc": "Get encryption status, algorithm, and permissions from a PDF document",
+            "action_code": DPAT_API,
+        });
+
+        # Digital signature actions
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/create-signature-field",
+            "action": "create-digital-signature-field",
+            "display_name": "Create Signature Field",
+            "short_desc": "Create a digital signature field",
+            "desc": "Create a digital signature field placeholder for later signing",
+            "action_code": DPAT_API,
+        });
+
+        # NOTE: sign-document action is disabled until OpenSSL integration is complete
+        # DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+        #     "app": PdfDataProvider::AppName,
+        #     "path": "/document/sign",
+        #     "action": "sign-document",
+        #     "display_name": "Sign Document",
+        #     "short_desc": "Digitally sign a PDF",
+        #     "desc": "Sign a PDF document with an X.509 certificate and private key",
+        #     "action_code": DPAT_API,
+        # });
+
+        DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
+            "app": PdfDataProvider::AppName,
+            "path": "/document/list-signatures",
+            "action": "list-signatures",
+            "display_name": "List Signatures",
+            "short_desc": "List digital signatures",
+            "desc": "List all digital signatures in a PDF document",
+            "action_code": DPAT_API,
+        });
+
         # Register render actions only if PDFium is available
         if (PdfRenderer::isAvailable()) {
             DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{

@@ -1,7 +1,7 @@
 # -*- mode: qore; indent-tabs-mode: nil -*-
-#! Qore PdfSplitDocumentDataProvider class definition
+#! Qore PdfGetEncryptionInfoDataProvider class definition
 
-/** PdfSplitDocumentDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
+/** PdfGetEncryptionInfoDataProvider.qc Copyright (C) 2026 Qore Technologies, s.r.o.
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
@@ -24,13 +24,37 @@
 
 #! Contains all public definitions in the PdfDataProvider module
 public namespace PdfDataProvider {
-#! Split document data provider
-public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
+#! Get encryption information from a PDF document
+/**
+    This data provider returns encryption details about a PDF document including:
+    - encrypted: Whether the document is encrypted
+    - algorithm: Encryption algorithm (if encrypted)
+    - key_length: Key length in bits (if encrypted)
+    - permissions: Document permission flags (if encrypted)
+    - metadata_encrypted: Whether metadata is also encrypted
+
+    @par Supported algorithms (see PdfEncryptionAlgorithms):
+    - "rc4-40" - 40-bit RC4 (legacy)
+    - "rc4-128" - 128-bit RC4 (legacy)
+    - "aes-128" - 128-bit AES
+    - "aes-256" - 256-bit AES
+
+    @par Example:
+    @code{.py}
+    hash<auto> response = dp.doRequest(<PdfGetEncryptionInfoRequest>{
+        "input_path": "document.pdf",
+    });
+    if (response.encrypted) {
+        printf("Encrypted with: %s (%d-bit key)\n", response.algorithm, response.key_length);
+    }
+    @endcode
+*/
+public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
     public {
         const ProviderInfo = <DataProviderInfo>{
-            "name": "split",
-            "desc": "Split a PDF into individual pages",
-            "type": "PdfSplitDocumentDataProvider",
+            "name": "get-encryption-info",
+            "desc": "Get encryption information from a PDF (algorithm, key length, permissions)",
+            "type": "PdfGetEncryptionInfoDataProvider",
             "supports_request": True,
         };
     }
@@ -52,41 +76,29 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSplitDocumentRequest>"));
+        return AbstractDataProviderType::get(new Type("hash<PdfGetEncryptionInfoRequest>"));
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSplitDocumentResponse>"));
+        return AbstractDataProviderType::get(new Type("hash<PdfEncryptionInfo>"));
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfSplitDocumentRequest> request = req;
+        hash<PdfGetEncryptionInfoRequest> request = req;
 
+        # Validate required fields
         if (!request.input_path || request.input_path.size() == 0) {
             throw "PDF-ERROR", "input_path is required";
         }
 
-        if (!request.output_dir || request.output_dir.size() == 0) {
-            throw "PDF-ERROR", "output_dir is required";
-        }
+        @debug("getting encryption info: input=%y", request.input_path);
 
-        @debug("splitting document: input=%y output_dir=%y", request.input_path, request.output_dir);
+        # Use static method to get encryption info
+        hash<auto> info = PdfEditor::getEncryptionInfo(request.input_path, request.password);
 
-        # Load document first to capture warnings
-        PdfDocument doc(request.input_path);
+        @debug("encryption info: encrypted=%y algorithm=%y", info.encrypted, info.algorithm);
 
-        *string prefix = request.prefix;
-        list<string> outputs = PdfDocument::split(request.input_path, request.output_dir,
-            prefix ? prefix : "page_");
-
-        hash<PdfSplitDocumentResponse> response();
-        response.outputs = outputs;
-        response.count = outputs.size();
-        response.warnings = doc.getWarnings();
-
-        @debug("split complete: pages=%d", response.count);
-
-        return response;
+        return info;
     }
 }
 }

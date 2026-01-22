@@ -70,6 +70,8 @@ public class PdfMergeDocumentDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "output_path is required";
         }
 
+        @debug("merging documents: input_count=%d output=%y", request.inputs.size(), request.output_path);
+
         PdfDocument merged = PdfDocument::merge(request.inputs, request.password);
         merged.save(request.output_path);
 
@@ -79,6 +81,8 @@ public class PdfMergeDocumentDataProvider inherits AbstractDataProvider {
         response.page_count = merged.pageCount();
         response.size = hstat(request.output_path).size;
         response.warnings = merged.getWarnings();
+
+        @debug("merge complete: pages=%d size=%d", response.page_count, response.size);
 
         return response;
     }

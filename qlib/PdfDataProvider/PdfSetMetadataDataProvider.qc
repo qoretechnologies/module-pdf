@@ -83,6 +83,8 @@ public class PdfSetMetadataDataProvider inherits AbstractDataProvider {
             output_path = request.input_path;
         }
 
+        @debug("setting metadata: input=%y output=%y", request.input_path, output_path);
+
         PdfDocument doc(request.input_path, request.password);
         doc.setMetadata(request.metadata);
         doc.save(output_path);
@@ -92,6 +94,8 @@ public class PdfSetMetadataDataProvider inherits AbstractDataProvider {
         response.output_path = output_path;
         response.page_count = doc.pageCount();
         response.warnings = doc.getWarnings();
+
+        @debug("metadata set: pages=%d", response.page_count);
 
         return response;
     }
