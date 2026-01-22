@@ -32,14 +32,20 @@ apt-get install -y qpdf libqpdf-dev libfreetype-dev
 # locate PDFium prebuilt
 PDFIUM_INCLUDE_DIR=/usr/include
 PDFIUM_LIBRARY=
+libdirs=()
 if command -v dpkg-architecture >/dev/null 2>&1; then
-    libdir="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+    libdirs+=("/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)")
+fi
+libdirs+=("/usr/lib/x86_64-linux-gnu" "/usr/lib/aarch64-linux-gnu")
+for libdir in "${libdirs[@]}"; do
     if [ -f "${libdir}/libpdfium.so" ]; then
         PDFIUM_LIBRARY="${libdir}/libpdfium.so"
+        break
     elif [ -f "${libdir}/libpdfium.a" ]; then
         PDFIUM_LIBRARY="${libdir}/libpdfium.a"
+        break
     fi
-fi
+done
 if [ -z "${PDFIUM_LIBRARY}" ]; then
     if [ -f /usr/lib64/libpdfium.so ]; then
         PDFIUM_LIBRARY=/usr/lib64/libpdfium.so
