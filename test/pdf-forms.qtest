@@ -169,6 +169,7 @@ public class PdfFormsTest inherits QUnit::Test {
 
     getSetFieldValueTest() {
         string outPdf = testDir + "/field_values.pdf";
+        string updatedPdf = testDir + "/field_values_updated.pdf";
 
         PdfEditor editor(basePdf);
 
@@ -181,10 +182,10 @@ public class PdfFormsTest inherits QUnit::Test {
         PdfEditor editor2(outPdf);
         editor2.setFormFieldValue("text_field", "Hello World");
         editor2.setFormFieldValue("check_field", True);
-        editor2.save(outPdf);
+        editor2.save(updatedPdf);
 
         # Read values back
-        PdfEditor editor3(outPdf);
+        PdfEditor editor3(updatedPdf);
         auto textValue = editor3.getFormFieldValue("text_field");
         auto checkValue = editor3.getFormFieldValue("check_field");
 
@@ -241,6 +242,7 @@ public class PdfFormsTest inherits QUnit::Test {
 
     dataProviderGetFormDataTest() {
         string outPdf = testDir + "/dp_get_data.pdf";
+        string updatedPdf = testDir + "/dp_get_data_updated.pdf";
 
         # Create a PDF with fields and set values
         PdfEditor editor(basePdf);
@@ -251,12 +253,12 @@ public class PdfFormsTest inherits QUnit::Test {
         PdfEditor editor2(outPdf);
         editor2.setFormFieldValue("username", "testuser");
         editor2.setFormFieldValue("remember", True);
-        editor2.save(outPdf);
+        editor2.save(updatedPdf);
 
         # Use data provider to get form data
         PdfGetFormDataDataProvider dp();
         auto response = dp.doRequest({
-            "input_path": outPdf,
+            "input_path": updatedPdf,
         });
 
         assertTrue(response.success, "get-form-data success");
@@ -266,7 +268,7 @@ public class PdfFormsTest inherits QUnit::Test {
 
         # Test getting specific fields only
         response = dp.doRequest({
-            "input_path": outPdf,
+            "input_path": updatedPdf,
             "fields": ("username",),
         });
 
