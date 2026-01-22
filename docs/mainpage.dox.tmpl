@@ -40,6 +40,47 @@ qdp 'pdf{}/render/extract-text' input_path=out.pdf,page_index=0
 - PoDoFo (required; bundled by default, LGPL-2.0-or-later)
 - PDFium (optional)
 
+\section packages OS Packages
+
+The bundled PoDoFo build requires common graphics/font libraries. PDFium is
+optional; there is no MacPorts PDFium port.
+
+\subsection packages_ubuntu Ubuntu
+
+\code{.bash}
+sudo apt-get update
+sudo apt-get install -y \
+  cmake pkg-config qpdf libqpdf-dev libfreetype-dev \
+  libssl-dev libxml2-dev libfontconfig1-dev libpng-dev \
+  libjpeg-turbo8-dev libtiff-dev zlib1g-dev
+\endcode
+
+\subsection packages_alpine Alpine
+
+\code{.bash}
+sudo apk add --no-cache \
+  cmake pkgconfig qpdf qpdf-dev freetype-dev \
+  openssl-dev libxml2-dev fontconfig-dev libpng-dev \
+  libjpeg-turbo-dev tiff-dev zlib-dev
+\endcode
+
+\subsection packages_fedora Fedora
+
+\code{.bash}
+sudo dnf install -y \
+  cmake pkgconf-pkg-config qpdf qpdf-devel freetype-devel \
+  openssl-devel libxml2-devel fontconfig-devel libpng-devel \
+  libjpeg-turbo-devel libtiff-devel zlib-devel
+\endcode
+
+\subsection packages_macports MacPorts
+
+\code{.bash}
+sudo port install \
+  cmake pkgconfig qpdf freetype openssl3 libxml2 fontconfig libpng \
+  libjpeg-turbo tiff zlib
+\endcode
+
 \section releasenotes Release Notes
 
 - 2026-01-20: Bundled PoDoFo to include a fix for a CFF font-embedding leak in
