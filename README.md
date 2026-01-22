@@ -30,6 +30,10 @@ sudo apt-get install -y \
   libjpeg-turbo8-dev libtiff-dev zlib1g-dev
 ```
 
+PDFium (optional): not packaged in standard Ubuntu repos; provide a prebuilt
+`libpdfium` and pass `-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...`,
+or use `-DENABLE_PDFIUM=OFF`.
+
 Alpine:
 
 ```bash
@@ -38,6 +42,10 @@ sudo apk add --no-cache \
   openssl-dev libxml2-dev fontconfig-dev libpng-dev \
   libjpeg-turbo-dev tiff-dev zlib-dev
 ```
+
+PDFium (optional): not in Alpine repos; provide a prebuilt `libpdfium` and pass
+`-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...`,
+or use `-DENABLE_PDFIUM=OFF`.
 
 Fedora:
 
