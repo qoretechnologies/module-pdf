@@ -26,6 +26,10 @@ find_package(Qore 2.0 REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(QPDF REQUIRED libqpdf)
+if (pkgcfg_lib_QPDF_qpdf)
+    # Prefer absolute library path from pkg-config to avoid missing -L paths on macOS.
+    set(QPDF_LIBRARIES ${pkgcfg_lib_QPDF_qpdf})
+endif()
 
 option(USE_BUNDLED_PODOFO "Use bundled PoDoFo sources" ON)
 set(PODOFO_BUNDLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/podofo")
@@ -108,6 +112,12 @@ add_library(${module_name} MODULE ${CPP_SRC} ${QPP_SOURCES})
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${QPDF_INCLUDE_DIRS})
 include_directories(${PODOFO_INCLUDE_DIRS})
+if (QPDF_LIBRARY_DIRS)
+    link_directories(${QPDF_LIBRARY_DIRS})
+endif()
+if (PODOFO_LIBRARY_DIRS)
+    link_directories(${PODOFO_LIBRARY_DIRS})
+endif()
 
 target_include_directories(${module_name} PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>)
 
