@@ -32,22 +32,24 @@
 #include "QC_PdfPage.h"
 #include "QC_PdfEditor.h"
 
-static QoreStringNode* pdf_module_init();
-static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns);
+static void pdf_module_init(QoreModuleInitContext& ctx, ExceptionSink& xsink);
+static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns, ExceptionSink& xsink);
 static void pdf_module_delete();
 
-DLLEXPORT char qore_module_name[] = "pdf";
-DLLEXPORT char qore_module_version[] = "1.0.0";
-DLLEXPORT char qore_module_description[] = "Qore PDF module";
-DLLEXPORT char qore_module_author[] = "Qore Technologies, s.r.o.";
-DLLEXPORT char qore_module_url[] = "https://github.com/qoretechnologies/module-pdf";
-DLLEXPORT int qore_module_api_major = QORE_MODULE_API_MAJOR;
-DLLEXPORT int qore_module_api_minor = QORE_MODULE_API_MINOR;
-DLLEXPORT qore_module_init_t qore_module_init = pdf_module_init;
-DLLEXPORT qore_module_ns_init_t qore_module_ns_init = pdf_module_ns_init;
-DLLEXPORT qore_module_delete_t qore_module_delete = pdf_module_delete;
-DLLEXPORT qore_license_t qore_module_license = QL_MIT;
-DLLEXPORT char qore_module_license_str[] = "MIT";
+extern "C" DLLEXPORT void pdf_qore_module_desc(QoreModuleInfo& mod_info) {
+    mod_info.name = "pdf";
+    mod_info.version = "1.0.0";
+    mod_info.desc = "Qore PDF module";
+    mod_info.author = "Qore Technologies, s.r.o.";
+    mod_info.url = "https://github.com/qoretechnologies/module-pdf";
+    mod_info.api_major = QORE_MODULE_API_MAJOR;
+    mod_info.api_minor = QORE_MODULE_API_MINOR;
+    mod_info.init = pdf_module_init;
+    mod_info.ns_init = pdf_module_ns_init;
+    mod_info.del = pdf_module_delete;
+    mod_info.license = QL_MIT;
+    mod_info.license_str = "MIT";
+}
 
 const TypedHashDecl* hashdeclPdfMetadata = nullptr;
 const TypedHashDecl* hashdeclPdfRenderResult = nullptr;
@@ -59,7 +61,7 @@ const TypedHashDecl* hashdeclPdfFontSpec = nullptr;
 
 QoreNamespace PdfNs("Qore::Pdf");
 
-static QoreStringNode* pdf_module_init() {
+static void pdf_module_init(QoreModuleInitContext& ctx, ExceptionSink& xsink) {
     hashdeclPdfMetadata = init_hashdecl_PdfMetadata(PdfNs);
     hashdeclPdfRenderResult = init_hashdecl_PdfRenderResult(PdfNs);
     hashdeclPdfFontOptions = init_hashdecl_PdfFontOptions(PdfNs);
@@ -75,10 +77,9 @@ static QoreStringNode* pdf_module_init() {
     PdfNs.addSystemClass(initPdfRendererClass(PdfNs));
     PdfNs.addSystemClass(initPdfEditorClass(PdfNs));
 
-    return nullptr;
 }
 
-static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns) {
+static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns, ExceptionSink& xsink) {
     qns->addNamespace(PdfNs.copy());
 }
 
