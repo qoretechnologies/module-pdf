@@ -25,10 +25,6 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-%new-style
-%strict-args
-%require-types
-%enable-all-warnings
 %modern
 
 %requires QUnit

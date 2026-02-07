@@ -28,10 +28,7 @@
 %requires Mime
 %requires pdf
 
-%new-style
-%strict-args
-%require-types
-%enable-all-warnings
+%modern
 
 module PdfDataProvider {
     version = "1.0";
