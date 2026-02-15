@@ -25,6 +25,7 @@
 %requires qore >= 2.0
 
 %requires DataProvider
+%requires FileLocationHandler
 %requires Mime
 %requires pdf
 
@@ -46,6 +47,7 @@ module PdfDataProvider {
             "display_name": "PDF Document",
             "short_desc": "PDF manipulation and rendering",
             "desc": "Create, edit, and render PDF documents with metadata support",
+            "groups": (DataProvider::AppGroup::Documents,),
             "logo": Priv::PdfLogo,
             "logo_file_name": "pdf-logo.svg",
             "logo_mime_type": MimeTypeSvg,
