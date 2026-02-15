@@ -52,7 +52,7 @@ public class PdfMergeDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfMergeDocumentRequest>"));
+        return new PdfMergeDocumentRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,26 +60,23 @@ public class PdfMergeDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfMergeDocumentRequest> request = req;
+        hash<auto> request = req;
 
         if (!request.inputs || request.inputs.size() == 0) {
             throw "PDF-ERROR", "inputs must contain at least one PDF";
         }
 
-        if (!request.output_path || request.output_path.size() == 0) {
-            throw "PDF-ERROR", "output_path is required";
-        }
-
-        @debug("merging documents: input_count=%d output=%y", request.inputs.size(), request.output_path);
+        @debug("merging documents: input_count=%d output_path=%y output_location=%y",
+            request.inputs.size(), request.output_path, request.output_location);
 
         PdfDocument merged = PdfDocument::merge(request.inputs, request.password);
-        merged.save(request.output_path);
+        binary pdf_data = merged.toData();
+        hash<auto> output = PdfActionBase::makeOutputResponse(pdf_data, request);
 
         hash<PdfMergeDocumentResponse> response();
         response.success = True;
-        response.output_path = request.output_path;
+        response += output;
         response.page_count = merged.pageCount();
-        response.size = hstat(request.output_path).size;
         response.warnings = merged.getWarnings();
 
         @debug("merge complete: pages=%d size=%d", response.page_count, response.size);

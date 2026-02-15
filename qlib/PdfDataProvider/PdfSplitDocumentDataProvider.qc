@@ -52,7 +52,7 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSplitDocumentRequest>"));
+        return new PdfSplitDocumentRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,23 +60,45 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfSplitDocumentRequest> request = req;
-
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        hash<auto> request = req;
 
         if (!request.output_dir || request.output_dir.size() == 0) {
             throw "PDF-ERROR", "output_dir is required";
         }
 
-        @debug("splitting document: input=%y output_dir=%y", request.input_path, request.output_dir);
+        @debug("splitting document: input_path=%y location=%y has_data=%y output_dir=%y",
+            request.input_path, request.location, exists request.data, request.output_dir);
+
+        # For binary/location input, write to temp file first since split uses file paths
+        string input_path;
+        *string temp_path;
+        if (request.input_path) {
+            input_path = request.input_path;
+        } else {
+            binary pdf_data;
+            if (request.location) {
+                pdf_data = FileLocationHandler::getBinaryFileFromLocation(request.location);
+            } else if (request.data) {
+                pdf_data = request.data;
+            } else {
+                throw "PDF-ERROR", "one of 'input_path', 'data', or 'location' must be provided";
+            }
+            temp_path = sprintf("%s/.pdf_split_tmp_%d.pdf", request.output_dir, getpid());
+            PdfActionBase::writeBinaryFile(temp_path, pdf_data);
+            input_path = temp_path;
+        }
+
+        on_exit {
+            if (temp_path && is_file(temp_path)) {
+                unlink(temp_path);
+            }
+        }
 
         # Load document first to capture warnings
-        PdfDocument doc(request.input_path);
+        PdfDocument doc(input_path);
 
         *string prefix = request.prefix;
-        list<string> outputs = PdfDocument::split(request.input_path, request.output_dir,
+        list<string> outputs = PdfDocument::split(input_path, request.output_dir,
             prefix ? prefix : "page_");
 
         hash<PdfSplitDocumentResponse> response();

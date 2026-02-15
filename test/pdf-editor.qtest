@@ -359,7 +359,7 @@ public class PdfEditorTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+            assertEq("REQUIRED-FIELD-GROUP-ERROR", ex.err, "missing input_path throws REQUIRED-FIELD-GROUP-ERROR");
         }
         assertTrue(thrown, "missing input_path throws");
 

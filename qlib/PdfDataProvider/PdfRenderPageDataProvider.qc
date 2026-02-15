@@ -52,7 +52,7 @@ public class PdfRenderPageDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfRenderPageRequest>"));
+        return new PdfRenderPageRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,14 +60,10 @@ public class PdfRenderPageDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfRenderPageRequest> request = req;
+        hash<auto> request = req;
 
         if (!PdfRenderer::isAvailable()) {
             throw "PDF-ERROR", "PDFium support is not available";
-        }
-
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
         }
 
         if (request.page_index < 0) {
@@ -82,9 +78,16 @@ public class PdfRenderPageDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "dpi must be positive";
         }
 
-        @debug("rendering page: input=%y page=%d dpi=%d", request.input_path, request.page_index, dpi);
+        @debug("rendering page: input_path=%y location=%y has_data=%y page=%d dpi=%d",
+            request.input_path, request.location, exists request.data, request.page_index, dpi);
 
-        hash<PdfRenderResult> result = PdfRenderer::renderPage(request.input_path, request.page_index, dpi);
+        hash<PdfRenderResult> result;
+        if (request.input_path) {
+            result = PdfRenderer::renderPage(request.input_path, request.page_index, dpi);
+        } else {
+            binary pdf_data = PdfActionBase::getRendererData(request);
+            result = PdfRenderer::renderPageFromData(pdf_data, request.page_index, dpi);
+        }
 
         *string output_path = request.output_path;
         if (output_path) {

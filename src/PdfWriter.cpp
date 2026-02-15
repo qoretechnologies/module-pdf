@@ -24,6 +24,7 @@
 */
 
 #include "PdfWriter.h"
+#include "pdf-module.h"
 
 #include <vector>
 
@@ -160,9 +161,36 @@ void QorePdfWriter::setFontOptions(const QoreHashNode* opts, ExceptionSink* xsin
 }
 
 void QorePdfWriter::save(const std::string& path, ExceptionSink* xsink) {
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF writer save")) {
+        return;
+    }
+
     try {
         doc.Save(path.c_str());
     } catch (const std::exception& e) {
         pdf_error(xsink, e.what());
+    }
+}
+
+BinaryNode* QorePdfWriter::saveToMemory(ExceptionSink* xsink) {
+    if (qore_check_io_interrupt(xsink, "PDF writer save to memory")) {
+        return nullptr;
+    }
+
+    try {
+        PoDoFo::charbuff buffer;
+        PoDoFo::BufferStreamDevice device(buffer);
+        doc.Save(device);
+
+        SimpleRefHolder<BinaryNode> result(new BinaryNode);
+        result->append(buffer.data(), buffer.size());
+        return result.release();
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+        return nullptr;
     }
 }

@@ -35,7 +35,11 @@ public:
     static bool isAvailable();
     static QoreHashNode* renderPage(const std::string& path, int page_index, int dpi,
             ExceptionSink* xsink);
+    static QoreHashNode* renderPageFromData(const BinaryNode* data, int page_index, int dpi,
+            ExceptionSink* xsink);
     static QoreStringNode* extractText(const std::string& path, int page_index, ExceptionSink* xsink);
+    static QoreStringNode* extractTextFromData(const BinaryNode* data, int page_index,
+            ExceptionSink* xsink);
 };
 
 #endif

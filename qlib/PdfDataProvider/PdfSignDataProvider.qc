@@ -86,7 +86,7 @@ public class PdfSignDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfSignRequest> request = req;
+        hash<auto> request = req;
 
         # Validate required fields
         if (!request.input_path || request.input_path.size() == 0) {

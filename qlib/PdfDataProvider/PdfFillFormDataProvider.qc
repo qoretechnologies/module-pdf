@@ -41,7 +41,7 @@ public namespace PdfDataProvider {
     hash<auto> response = dp.doRequest(<PdfFillFormRequest>{
         "input_path": "form.pdf",
         "output_path": "filled_form.pdf",
-        "data": {
+        "form_data": {
             "customer_name": "John Doe",
             "email": "john@example.com",
             "agree_terms": True,
@@ -77,7 +77,7 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfFillFormRequest>"));
+        return new PdfFillFormRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -85,31 +85,25 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfFillFormRequest> request = req;
+        hash<auto> request = req;
+
+        PdfActionBase::validateOutputRequired(request);
 
         # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
-        if (!request.data || request.data.size() == 0) {
-            throw "PDF-ERROR", "data is required and must contain at least one field";
-        }
-        if (!request.output_path && !request.overwrite) {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
+        if (!request.form_data || request.form_data.size() == 0) {
+            throw "PDF-ERROR", "form_data is required and must contain at least one field";
         }
 
-        # Determine output path
-        string output_path = request.output_path ?? request.input_path;
+        @debug("filling form: input_path=%y location=%y has_data=%y field_count=%d flatten=%y",
+            request.input_path, request.location, exists request.data,
+            request.form_data.size(), request.flatten ?? False);
 
-        @debug("filling form: input=%y output=%y field_count=%d flatten=%y",
-            request.input_path, output_path, request.data.size(), request.flatten ?? False);
-
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         list<string> warnings = ();
         int fields_filled = 0;
 
         # Fill each field
-        HashIterator it(request.data);
+        HashIterator it(request.form_data);
         while (it.next()) {
             string field_name = it.getKey();
             auto value = it.getValue();
@@ -129,19 +123,12 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
         }
 
         # Save the document
-        if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfFillFormResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.fields_filled = fields_filled;
-        response.size = hstat(output_path).size;
         response.warnings = warnings ? warnings : NOTHING;
 
         @debug("form filled: fields=%d warnings=%d", fields_filled, warnings.size());

@@ -74,6 +74,23 @@ PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM] {
     self->setPrivate(CID_PDFDOCUMENT, holder.release());
 }
 
+//! Opens a PDF document from binary data
+/** @param data binary PDF data
+    @param password optional password
+*/
+PdfDocument::constructor(binary data, *string password) {
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return;
+    }
+    ReferenceHolder<QorePdfDocument> holder(new QorePdfDocument(data,
+        password ? password->c_str() : "", xsink), xsink);
+    if (*xsink) {
+        return;
+    }
+    self->setPrivate(CID_PDFDOCUMENT, holder.release());
+}
+
 //! Returns the number of pages in the document
 /** Returns the number of pages in the document.
     @return the number of pages
@@ -102,6 +119,16 @@ hash<PdfMetadata> PdfDocument::metadata() {
 */
 nothing PdfDocument::setMetadata(hash<PdfMetadata> metadata) {
     doc->setMetadata(metadata, xsink);
+}
+
+//! Serializes the document to binary data
+/** Returns the document as binary data.
+    @return binary PDF data
+
+    @throw PDF-ERROR if the document is not initialized or cannot be serialized
+*/
+binary PdfDocument::toData() {
+    return doc->toData(xsink);
 }
 
 //! Saves the document to a file

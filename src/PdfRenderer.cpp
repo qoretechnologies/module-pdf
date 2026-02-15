@@ -47,46 +47,48 @@ bool QorePdfRenderer::isAvailable() {
 #endif
 }
 
-QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_index, int dpi,
-        ExceptionSink* xsink) {
-#ifndef HAVE_PDFIUM
-    pdf_error(xsink, "PDFium support is not available");
-    return nullptr;
-#else
-    if (page_index < 0) {
-        pdf_error(xsink, "Page index must be non-negative");
-        return nullptr;
+#ifdef HAVE_PDFIUM
+// RAII wrapper for PDFium library initialization/cleanup
+class PdfiumLibraryGuard {
+public:
+    PdfiumLibraryGuard() {
+        FPDF_LIBRARY_CONFIG config;
+        memset(&config, 0, sizeof(config));
+        config.version = 2;
+        FPDF_InitLibraryWithConfig(&config);
     }
-    if (dpi <= 0) {
-        pdf_error(xsink, "DPI must be positive");
-        return nullptr;
-    }
-
-    FPDF_LIBRARY_CONFIG config;
-    memset(&config, 0, sizeof(config));
-    config.version = 2;
-    FPDF_InitLibraryWithConfig(&config);
-
-    FPDF_DOCUMENT doc = FPDF_LoadDocument(path.c_str(), nullptr);
-    if (!doc) {
-        pdf_error(xsink, "Failed to load PDF document");
+    ~PdfiumLibraryGuard() {
         FPDF_DestroyLibrary();
-        return nullptr;
     }
+    PdfiumLibraryGuard(const PdfiumLibraryGuard&) = delete;
+    PdfiumLibraryGuard& operator=(const PdfiumLibraryGuard&) = delete;
+};
 
+// RAII wrapper for FPDF_DOCUMENT
+class PdfiumDocGuard {
+public:
+    PdfiumDocGuard(FPDF_DOCUMENT d) : doc(d) {}
+    ~PdfiumDocGuard() { if (doc) { FPDF_CloseDocument(doc); } }
+    operator FPDF_DOCUMENT() const { return doc; }
+    explicit operator bool() const { return doc != nullptr; }
+    PdfiumDocGuard(const PdfiumDocGuard&) = delete;
+    PdfiumDocGuard& operator=(const PdfiumDocGuard&) = delete;
+private:
+    FPDF_DOCUMENT doc;
+};
+
+// Internal helper: render a page from an already-loaded document
+static QoreHashNode* renderPageFromDoc(FPDF_DOCUMENT doc, int page_index, int dpi,
+        ExceptionSink* xsink) {
     int page_count = FPDF_GetPageCount(doc);
     if (page_index >= page_count) {
         pdf_error(xsink, "Page index out of range");
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
 
     FPDF_PAGE page = FPDF_LoadPage(doc, page_index);
     if (!page) {
         pdf_error(xsink, "Failed to load PDF page");
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
 
@@ -113,8 +115,6 @@ QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_inde
         pdf_error(xsink, "Failed to allocate memory for render data");
         FPDFBitmap_Destroy(bitmap);
         FPDF_ClosePage(page);
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
     memcpy(copy, buffer, size);
@@ -122,48 +122,21 @@ QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_inde
 
     FPDFBitmap_Destroy(bitmap);
     FPDF_ClosePage(page);
-    FPDF_CloseDocument(doc);
-    FPDF_DestroyLibrary();
 
     return result;
-#endif
 }
 
-QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_index, ExceptionSink* xsink) {
-#ifndef HAVE_PDFIUM
-    pdf_error(xsink, "PDFium support is not available");
-    return nullptr;
-#else
-    if (page_index < 0) {
-        pdf_error(xsink, "Page index must be non-negative");
-        return nullptr;
-    }
-
-    FPDF_LIBRARY_CONFIG config;
-    memset(&config, 0, sizeof(config));
-    config.version = 2;
-    FPDF_InitLibraryWithConfig(&config);
-
-    FPDF_DOCUMENT doc = FPDF_LoadDocument(path.c_str(), nullptr);
-    if (!doc) {
-        pdf_error(xsink, "Failed to load PDF document");
-        FPDF_DestroyLibrary();
-        return nullptr;
-    }
-
+// Internal helper: extract text from an already-loaded document
+static QoreStringNode* extractTextFromDoc(FPDF_DOCUMENT doc, int page_index, ExceptionSink* xsink) {
     int page_count = FPDF_GetPageCount(doc);
     if (page_index >= page_count) {
         pdf_error(xsink, "Page index out of range");
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
 
     FPDF_PAGE page = FPDF_LoadPage(doc, page_index);
     if (!page) {
         pdf_error(xsink, "Failed to load PDF page");
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
 
@@ -172,8 +145,6 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
     if (count <= 0) {
         FPDFText_ClosePage(text_page);
         FPDF_ClosePage(page);
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return new QoreStringNode("");
     }
 
@@ -183,8 +154,6 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
         pdf_error(xsink, "Failed to extract text");
         FPDFText_ClosePage(text_page);
         FPDF_ClosePage(page);
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
     size_t max_index = buffer.size() - 1;
@@ -205,16 +174,131 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
     if (*xsink) {
         FPDFText_ClosePage(text_page);
         FPDF_ClosePage(page);
-        FPDF_CloseDocument(doc);
-        FPDF_DestroyLibrary();
         return nullptr;
     }
 
     FPDFText_ClosePage(text_page);
     FPDF_ClosePage(page);
-    FPDF_CloseDocument(doc);
-    FPDF_DestroyLibrary();
 
     return str.release();
+}
+#endif
+
+QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_index, int dpi,
+        ExceptionSink* xsink) {
+#ifndef HAVE_PDFIUM
+    pdf_error(xsink, "PDFium support is not available");
+    return nullptr;
+#else
+    if (page_index < 0) {
+        pdf_error(xsink, "Page index must be non-negative");
+        return nullptr;
+    }
+    if (dpi <= 0) {
+        pdf_error(xsink, "DPI must be positive");
+        return nullptr;
+    }
+
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return nullptr;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF render page")) {
+        return nullptr;
+    }
+
+    PdfiumLibraryGuard lib;
+    PdfiumDocGuard doc(FPDF_LoadDocument(path.c_str(), nullptr));
+    if (!doc) {
+        pdf_error(xsink, "Failed to load PDF document");
+        return nullptr;
+    }
+
+    return renderPageFromDoc(doc, page_index, dpi, xsink);
+#endif
+}
+
+QoreHashNode* QorePdfRenderer::renderPageFromData(const BinaryNode* data, int page_index, int dpi,
+        ExceptionSink* xsink) {
+#ifndef HAVE_PDFIUM
+    pdf_error(xsink, "PDFium support is not available");
+    return nullptr;
+#else
+    if (!data || data->size() == 0) {
+        pdf_error(xsink, "binary data is empty");
+        return nullptr;
+    }
+    if (page_index < 0) {
+        pdf_error(xsink, "Page index must be non-negative");
+        return nullptr;
+    }
+    if (dpi <= 0) {
+        pdf_error(xsink, "DPI must be positive");
+        return nullptr;
+    }
+
+    PdfiumLibraryGuard lib;
+    PdfiumDocGuard doc(FPDF_LoadMemDocument(data->getPtr(), static_cast<int>(data->size()), nullptr));
+    if (!doc) {
+        pdf_error(xsink, "Failed to load PDF document from memory");
+        return nullptr;
+    }
+
+    return renderPageFromDoc(doc, page_index, dpi, xsink);
+#endif
+}
+
+QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_index, ExceptionSink* xsink) {
+#ifndef HAVE_PDFIUM
+    pdf_error(xsink, "PDFium support is not available");
+    return nullptr;
+#else
+    if (page_index < 0) {
+        pdf_error(xsink, "Page index must be non-negative");
+        return nullptr;
+    }
+
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return nullptr;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF extract text")) {
+        return nullptr;
+    }
+
+    PdfiumLibraryGuard lib;
+    PdfiumDocGuard doc(FPDF_LoadDocument(path.c_str(), nullptr));
+    if (!doc) {
+        pdf_error(xsink, "Failed to load PDF document");
+        return nullptr;
+    }
+
+    return extractTextFromDoc(doc, page_index, xsink);
+#endif
+}
+
+QoreStringNode* QorePdfRenderer::extractTextFromData(const BinaryNode* data, int page_index,
+        ExceptionSink* xsink) {
+#ifndef HAVE_PDFIUM
+    pdf_error(xsink, "PDFium support is not available");
+    return nullptr;
+#else
+    if (!data || data->size() == 0) {
+        pdf_error(xsink, "binary data is empty");
+        return nullptr;
+    }
+    if (page_index < 0) {
+        pdf_error(xsink, "Page index must be non-negative");
+        return nullptr;
+    }
+
+    PdfiumLibraryGuard lib;
+    PdfiumDocGuard doc(FPDF_LoadMemDocument(data->getPtr(), static_cast<int>(data->size()), nullptr));
+    if (!doc) {
+        pdf_error(xsink, "Failed to load PDF document from memory");
+        return nullptr;
+    }
+
+    return extractTextFromDoc(doc, page_index, xsink);
 #endif
 }

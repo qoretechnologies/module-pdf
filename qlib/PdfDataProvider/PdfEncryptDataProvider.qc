@@ -71,7 +71,7 @@ public class PdfEncryptDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfEncryptRequest>"));
+        return new PdfEncryptRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -79,17 +79,13 @@ public class PdfEncryptDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfEncryptRequest> request = req;
+        hash<auto> request = req;
+
+        PdfActionBase::validateOutputRequired(request);
 
         # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
         if (!request.owner_password || request.owner_password.size() == 0) {
             throw "PDF-ERROR", "owner_password is required";
-        }
-        if (!request.output_path && !request.overwrite) {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
         }
 
         # Validate and get algorithm (default to "aes-256")
@@ -104,32 +100,23 @@ public class PdfEncryptDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", sprintf("invalid algorithm %y; allowed values: %y", algorithm, valid_algorithms);
         }
 
-        # Determine output path
-        string output_path = request.output_path ?? request.input_path;
-
-        @debug("encrypting PDF: input=%y output=%y algorithm=%y", request.input_path, output_path, algorithm);
+        @debug("encrypting PDF: input_path=%y location=%y has_data=%y algorithm=%y",
+            request.input_path, request.location, exists request.data, algorithm);
 
         # Load document (with password if already encrypted)
-        PdfEditor editor(request.input_path, request.input_password);
+        PdfEditor editor = PdfActionBase::loadEditorWithPassword(request, request.input_password);
 
         # Set encryption
         editor.setEncryption(request.owner_password, request.user_password,
             request.permissions, algorithm);
 
         # Save the document
-        if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfEncryptResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.algorithm = algorithm;
-        response.size = hstat(output_path).size;
 
         @debug("encryption complete: size=%d", response.size);
 

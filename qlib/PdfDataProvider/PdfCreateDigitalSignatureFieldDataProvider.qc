@@ -79,7 +79,7 @@ public class PdfCreateDigitalSignatureFieldDataProvider inherits AbstractDataPro
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfCreateDigitalSignatureFieldRequest>"));
+        return new PdfCreateDigitalSignatureFieldRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -87,17 +87,13 @@ public class PdfCreateDigitalSignatureFieldDataProvider inherits AbstractDataPro
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfCreateDigitalSignatureFieldRequest> request = req;
+        hash<auto> request = req;
+
+        PdfActionBase::validateOutputRequired(request);
 
         # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
         if (!request.field) {
             throw "PDF-ERROR", "field is required";
-        }
-        if (!request.output_path && !request.overwrite) {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
         }
 
         hash<auto> field = request.field;
@@ -108,13 +104,10 @@ public class PdfCreateDigitalSignatureFieldDataProvider inherits AbstractDataPro
             throw "PDF-ERROR", "field.page is required";
         }
 
-        # Determine output path
-        string output_path = request.output_path ?? request.input_path;
+        @debug("creating signature field: input_path=%y location=%y has_data=%y field=%y page=%d",
+            request.input_path, request.location, exists request.data, field.name, field.page);
 
-        @debug("creating signature field: input=%y output=%y field=%y page=%d",
-            request.input_path, output_path, field.name, field.page);
-
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         list<string> warnings = ();
 
         # Build options hash
@@ -137,19 +130,12 @@ public class PdfCreateDigitalSignatureFieldDataProvider inherits AbstractDataPro
         }
 
         # Save the document
-        if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfCreateDigitalSignatureFieldResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.field_name = field.name;
-        response.size = hstat(output_path).size;
         response.warnings = warnings ? warnings : NOTHING;
 
         @debug("signature field created: size=%d", response.size);

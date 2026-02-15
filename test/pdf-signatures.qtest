@@ -218,7 +218,7 @@ public class PdfSignaturesTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing field throws PDF-ERROR");
+            assertEq("INVALID-REQUEST", ex.err, "missing field throws INVALID-REQUEST");
         }
         assertTrue(thrown, "missing field throws");
 
@@ -252,7 +252,7 @@ public class PdfSignaturesTest inherits QUnit::Test {
             dp2.doRequest({});
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+            assertEq("REQUIRED-FIELD-GROUP-ERROR", ex.err, "missing input_path throws REQUIRED-FIELD-GROUP-ERROR");
         }
         assertTrue(thrown, "missing input_path throws");
     }

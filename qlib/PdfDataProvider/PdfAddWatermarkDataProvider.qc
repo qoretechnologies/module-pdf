@@ -58,7 +58,7 @@ public class PdfAddWatermarkDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfAddWatermarkRequest>"));
+        return new PdfAddWatermarkRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -66,11 +66,9 @@ public class PdfAddWatermarkDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfAddWatermarkRequest> request = req;
+        hash<auto> request = req;
 
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        PdfActionBase::validateOutputRequired(request);
 
         if (!request.watermark) {
             throw "PDF-ERROR", "watermark specification is required";
@@ -119,20 +117,11 @@ public class PdfAddWatermarkDataProvider inherits AbstractDataProvider {
             }
         }
 
-        # Determine output path
-        string output_path;
-        if (request.output_path) {
-            output_path = request.output_path;
-        } else if (request.overwrite) {
-            output_path = request.input_path;
-        } else {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
-        }
-
-        @debug("adding watermark: input=%y output=%y type=%y", request.input_path, output_path, wm_type);
+        @debug("adding watermark: input_path=%y location=%y has_data=%y type=%y",
+            request.input_path, request.location, exists request.data, wm_type);
 
         # Load the document
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         int page_count = editor.pageCount();
 
         # Determine pages to modify (default: all pages for watermarks)
@@ -179,20 +168,13 @@ public class PdfAddWatermarkDataProvider inherits AbstractDataProvider {
         }
 
         # Save the document
-        if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfAddWatermarkResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.page_count = page_count;
         response.pages_watermarked = pages_watermarked;
-        response.size = hstat(output_path).size;
         response.warnings = warnings ? warnings : NOTHING;
 
         @debug("watermarks added: pages_watermarked=%d warnings=%d", pages_watermarked, warnings.size());

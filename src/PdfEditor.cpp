@@ -24,6 +24,7 @@
 */
 
 #include "PdfEditor.h"
+#include "pdf-module.h"
 
 #include <cmath>
 #include <algorithm>
@@ -90,6 +91,14 @@ static bool parseHexColor(const std::string& hex, double& r, double& g, double& 
 
 QorePdfEditor::QorePdfEditor(const std::string& path, const std::string& password,
                              ExceptionSink* xsink) {
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF editor load")) {
+        return;
+    }
+
     try {
         doc = std::make_unique<PoDoFo::PdfMemDocument>();
         if (password.empty()) {
@@ -106,6 +115,9 @@ QorePdfEditor::QorePdfEditor(const BinaryNode* data, const std::string& password
                              ExceptionSink* xsink) {
     if (!data || data->size() == 0) {
         pdf_error(xsink, "binary data is empty");
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF editor load from memory")) {
         return;
     }
 
@@ -405,6 +417,14 @@ void QorePdfEditor::drawImage(int pageIndex, const std::string& imagePath,
         return;
     }
 
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(imagePath.c_str(), QSEC_READ, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF draw image")) {
+        return;
+    }
+
     try {
         auto image = doc->CreateImage();
         image->Load(imagePath);
@@ -666,6 +686,14 @@ void QorePdfEditor::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF editor save")) {
+        return;
+    }
+
     try {
         doc->Save(path);
     } catch (const std::exception& e) {
@@ -715,6 +743,11 @@ void QorePdfEditor::setFontOptions(const QoreHashNode* opts, ExceptionSink* xsin
 }
 
 QoreHashNode* QorePdfEditor::getImageDimensions(const std::string& path, ExceptionSink* xsink) {
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return nullptr;
+    }
+
     try {
         // Create a temporary document to load the image
         PoDoFo::PdfMemDocument tempDoc;
@@ -1484,6 +1517,11 @@ bool QorePdfEditor::isEncrypted() const {
 
 QoreHashNode* QorePdfEditor::getEncryptionInfo(const std::string& path, const std::string& password,
                                                 ExceptionSink* xsink) {
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return nullptr;
+    }
+
     try {
         PoDoFo::PdfMemDocument tempDoc;
         bool encrypted = false;

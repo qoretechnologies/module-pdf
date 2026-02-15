@@ -52,7 +52,7 @@ public class PdfRotatePagesDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfRotatePagesRequest>"));
+        return new PdfRotatePagesRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,35 +60,23 @@ public class PdfRotatePagesDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfRotatePagesRequest> request = req;
+        hash<auto> request = req;
 
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        PdfActionBase::validateOutputRequired(request);
 
-        bool overwrite = False;
-        if (request.overwrite) {
-            overwrite = request.overwrite;
-        }
+        @debug("rotating pages: input_path=%y location=%y has_data=%y pages=%y degrees=%d",
+            request.input_path, request.location, exists request.data,
+            request.pages, request.degrees);
 
-        *string output_path = request.output_path;
-        if (!output_path) {
-            if (!overwrite) {
-                throw "PDF-ERROR", "output_path is required unless overwrite is true";
-            }
-            output_path = request.input_path;
-        }
-
-        @debug("rotating pages: input=%y output=%y pages=%y degrees=%d",
-            request.input_path, output_path, request.pages, request.degrees);
-
-        PdfDocument doc(request.input_path, request.password);
+        PdfDocument doc = PdfActionBase::loadDocument(request);
         doc.rotatePages(request.pages, request.degrees);
-        doc.save(output_path);
+
+        binary pdf_data = doc.toData();
+        hash<auto> output = PdfActionBase::makeOutputResponse(pdf_data, request);
 
         hash<PdfRotatePagesResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.page_count = doc.pageCount();
         response.warnings = doc.getWarnings();
 

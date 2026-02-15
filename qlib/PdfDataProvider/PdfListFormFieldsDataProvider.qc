@@ -75,7 +75,7 @@ public class PdfListFormFieldsDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfListFormFieldsRequest>"));
+        return new PdfListFormFieldsRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -83,16 +83,12 @@ public class PdfListFormFieldsDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfListFormFieldsRequest> request = req;
+        hash<auto> request = req;
 
-        # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        @debug("listing form fields: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
 
-        @debug("listing form fields: input=%y", request.input_path);
-
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         list<hash<auto>> fields = editor.getFormFields();
 
         hash<PdfListFormFieldsResponse> response();

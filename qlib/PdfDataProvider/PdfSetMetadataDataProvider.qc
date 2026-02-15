@@ -52,7 +52,7 @@ public class PdfSetMetadataDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfSetMetadataRequest>"));
+        return new PdfSetMetadataRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,38 +60,26 @@ public class PdfSetMetadataDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfSetMetadataRequest> request = req;
-
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        hash<auto> request = req;
 
         if (!request.metadata) {
             throw "PDF-ERROR", "metadata is required";
         }
 
-        bool overwrite = False;
-        if (request.overwrite) {
-            overwrite = request.overwrite;
-        }
+        PdfActionBase::validateOutputRequired(request);
 
-        *string output_path = request.output_path;
-        if (!output_path) {
-            if (!overwrite) {
-                throw "PDF-ERROR", "output_path is required unless overwrite is true";
-            }
-            output_path = request.input_path;
-        }
+        @debug("setting metadata: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
 
-        @debug("setting metadata: input=%y output=%y", request.input_path, output_path);
-
-        PdfDocument doc(request.input_path, request.password);
+        PdfDocument doc = PdfActionBase::loadDocument(request);
         doc.setMetadata(request.metadata);
-        doc.save(output_path);
+
+        binary pdf_data = doc.toData();
+        hash<auto> output = PdfActionBase::makeOutputResponse(pdf_data, request);
 
         hash<PdfSetMetadataResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.page_count = doc.pageCount();
         response.warnings = doc.getWarnings();
 

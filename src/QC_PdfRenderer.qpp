@@ -85,6 +85,33 @@ static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index
     return QorePdfRenderer::renderPage(path->c_str(), page_index, dpi_value, xsink);
 }
 
+//! Renders a page from binary data to a bitmap
+/** @param data binary PDF data
+    @param page_index zero-based page index
+    @param dpi resolution in DPI
+
+    @return a @ref Qore::Pdf::PdfRenderResult hash with pixel data
+
+    @throw PDF-ERROR if rendering fails or PDFium is unavailable
+*/
+static hash<PdfRenderResult> PdfRenderer::renderPageFromData(binary data, int page_index,
+        *int dpi = 150) {
+    int dpi_value = dpi;
+    if (dpi_value <= 0) {
+        xsink->raiseException("PDF-ERROR", "DPI must be positive");
+        return QoreValue();
+    }
+    if (page_index < 0) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+        return QoreValue();
+    }
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return QoreValue();
+    }
+    return QorePdfRenderer::renderPageFromData(data, page_index, dpi_value, xsink);
+}
+
 //! Extracts text from a page
 /** @param path PDF path
     @param page_index zero-based page index
@@ -99,4 +126,24 @@ static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYS
         return QoreValue();
     }
     return QorePdfRenderer::extractText(path->c_str(), page_index, xsink);
+}
+
+//! Extracts text from a page using binary data
+/** @param data binary PDF data
+    @param page_index zero-based page index
+
+    @return extracted text
+
+    @throw PDF-ERROR if extraction fails or PDFium is unavailable
+*/
+static string PdfRenderer::extractTextFromData(binary data, int page_index) {
+    if (page_index < 0) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+        return QoreValue();
+    }
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return QoreValue();
+    }
+    return QorePdfRenderer::extractTextFromData(data, page_index, xsink);
 }

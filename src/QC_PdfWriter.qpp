@@ -124,3 +124,12 @@ nothing PdfWriter::save(string path) [dom=FILESYSTEM] {
     }
     writer->save(path->c_str(), xsink);
 }
+
+//! Saves the document to memory
+/** @return binary PDF data
+
+    @throw PDF-ERROR if the document cannot be saved
+*/
+binary PdfWriter::saveToMemory() {
+    return writer->saveToMemory(xsink);
+}

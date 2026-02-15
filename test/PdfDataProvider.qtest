@@ -54,6 +54,9 @@ public class PdfDataProviderTest inherits QUnit::Test {
         addTestCase("Rotate pages action tests", \rotatePagesActionTest());
         addTestCase("Render page action tests", \renderPageActionTest());
         addTestCase("Extract text action tests", \extractTextActionTest());
+        addTestCase("Binary data input tests", \binaryDataInputTest());
+        addTestCase("Location input tests", \locationInputTest());
+        addTestCase("Output mode tests", \outputModeTest());
         addTestCase("Negative action tests", \negativeActionTest());
         addTestCase("Corner case tests", \cornerCaseTest());
         addTestCase("Password-protected PDF action tests", \passwordProtectedActionTest());
@@ -361,15 +364,226 @@ public class PdfDataProviderTest inherits QUnit::Test {
         assertTrue(response.text.find("Extract action text") >= 0, "extracted text contains input");
     }
 
+    # ==================== Binary Data Input Tests ====================
+
+    binaryDataInputTest() {
+        # Create a PDF file to use as binary source
+        string source_path = testDir + "/binary_source.pdf";
+        createPdf(source_path, "Binary input test", <PdfMetadata>{"title": "Binary Title"});
+        binary pdf_data = ReadOnlyFile::readBinaryFile(source_path);
+
+        # Test 1: Document info with binary data input
+        AbstractDataProvider info_dp = getDocumentProvider("info");
+        hash<auto> info_response = info_dp.doRequest({
+            "data": pdf_data,
+        });
+        assertEq(1, info_response.page_count, "binary input info page count");
+        assertEq("Binary Title", info_response.metadata.title, "binary input info title");
+
+        # Test 2: Set metadata with binary data input
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        hash<auto> meta_response = metadata_dp.doRequest({
+            "data": pdf_data,
+            "metadata": <PdfMetadata>{"title": "Updated Binary"},
+            "return_data": True,
+        });
+        assertEq(True, meta_response.success, "binary input metadata update");
+        assertTrue(exists meta_response.data, "binary input returns data");
+        assertTrue(meta_response.size > 0, "binary input response has size");
+
+        # Verify updated data can be read back
+        hash<auto> verify_response = info_dp.doRequest({
+            "data": meta_response.data,
+        });
+        assertEq("Updated Binary", verify_response.metadata.title, "binary input metadata updated");
+
+        # Test 3: Rotate pages with binary data input
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        hash<auto> rotate_response = rotate_dp.doRequest({
+            "data": pdf_data,
+            "pages": (0,),
+            "degrees": 90,
+            "return_data": True,
+        });
+        assertEq(True, rotate_response.success, "binary input rotate");
+        assertTrue(exists rotate_response.data, "binary input rotate returns data");
+
+        # Test 4: Merge with binary data and file path mix
+        string pdf2_path = testDir + "/binary_merge2.pdf";
+        createPdf(pdf2_path, "Second merge doc");
+        AbstractDataProvider merge_dp = getDocumentProvider("merge");
+        hash<auto> merge_response = merge_dp.doRequest({
+            "inputs": (source_path, pdf2_path),
+            "return_data": True,
+        });
+        assertEq(True, merge_response.success, "merge with return_data");
+        assertEq(2, merge_response.page_count, "merge page count");
+        assertTrue(exists merge_response.data, "merge returns data");
+
+        # Test 5: Split with binary data input
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        string split_dir = testDir + "/binary_split";
+        mkdir(split_dir);
+        hash<auto> split_response = split_dp.doRequest({
+            "data": pdf_data,
+            "output_dir": split_dir,
+        });
+        assertEq(1, split_response.count, "binary input split count");
+
+        # Test 6: Create document with return_data only (no file output)
+        AbstractDataProvider create_dp = getDocumentProvider("create");
+        hash<auto> create_response = create_dp.doRequest({
+            "page_count": 1,
+            "return_data": True,
+        });
+        assertEq(True, create_response.success, "create with return_data");
+        assertTrue(exists create_response.data, "create returns data");
+        assertTrue(create_response.size > 0, "create data has size");
+    }
+
+    # ==================== Location Input Tests ====================
+
+    locationInputTest() {
+        # Create a PDF file to use as location source
+        string source_path = testDir + "/location_source.pdf";
+        createPdf(source_path, "Location input test", <PdfMetadata>{"title": "Location Title"});
+        string file_location = "file://" + source_path;
+
+        # Test 1: Document info with location input
+        AbstractDataProvider info_dp = getDocumentProvider("info");
+        hash<auto> info_response = info_dp.doRequest({
+            "location": file_location,
+        });
+        assertEq(1, info_response.page_count, "location input info page count");
+        assertEq("Location Title", info_response.metadata.title, "location input info title");
+
+        # Test 2: Set metadata with location input and output_location
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        string output_path = testDir + "/location_output.pdf";
+        string output_location = "file://" + output_path;
+        hash<auto> meta_response = metadata_dp.doRequest({
+            "location": file_location,
+            "metadata": <PdfMetadata>{"title": "Updated Location"},
+            "output_location": output_location,
+        });
+        assertEq(True, meta_response.success, "location input metadata update");
+        assertEq(output_location, meta_response.output_location, "output_location matches");
+        assertTrue(is_file(output_path), "output_location file created");
+
+        # Verify the output
+        hash<auto> verify_response = info_dp.doRequest({
+            "input_path": output_path,
+        });
+        assertEq("Updated Location", verify_response.metadata.title, "location output metadata updated");
+
+        # Test 3: Rotate pages with location input and output_path
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        string rotate_output = testDir + "/location_rotate.pdf";
+        hash<auto> rotate_response = rotate_dp.doRequest({
+            "location": file_location,
+            "output_path": rotate_output,
+            "pages": (0,),
+            "degrees": 180,
+        });
+        assertEq(True, rotate_response.success, "location input rotate");
+        assertEq(rotate_output, rotate_response.output_path, "rotate output_path matches");
+        assertTrue(is_file(rotate_output), "rotate output file created");
+
+        # Test 4: Split with location input
+        AbstractDataProvider split_dp = getDocumentProvider("split");
+        string split_dir = testDir + "/location_split";
+        mkdir(split_dir);
+        hash<auto> split_response = split_dp.doRequest({
+            "location": file_location,
+            "output_dir": split_dir,
+        });
+        assertEq(1, split_response.count, "location input split count");
+    }
+
+    # ==================== Output Mode Tests ====================
+
+    outputModeTest() {
+        string source_path = testDir + "/output_mode_source.pdf";
+        createPdf(source_path, "Output mode test");
+
+        # Test 1: return_data=True with output_path — should return data AND write file
+        AbstractDataProvider metadata_dp = getDocumentProvider("metadata");
+        string output1 = testDir + "/output_mode1.pdf";
+        hash<auto> response1 = metadata_dp.doRequest({
+            "input_path": source_path,
+            "output_path": output1,
+            "metadata": <PdfMetadata>{"title": "Mode1"},
+            "return_data": True,
+        });
+        assertEq(True, response1.success, "return_data + output_path success");
+        assertTrue(exists response1.data, "return_data returns data even with output_path");
+        assertTrue(is_file(output1), "output_path file created");
+        assertEq(output1, response1.output_path, "output_path matches");
+
+        # Test 2: return_data=False with output_path — should NOT return data
+        string output2 = testDir + "/output_mode2.pdf";
+        hash<auto> response2 = metadata_dp.doRequest({
+            "input_path": source_path,
+            "output_path": output2,
+            "metadata": <PdfMetadata>{"title": "Mode2"},
+            "return_data": False,
+        });
+        assertEq(True, response2.success, "return_data=False success");
+        assertEq(False, exists response2.data, "return_data=False does not return data");
+        assertTrue(is_file(output2), "output_path file created");
+
+        # Test 3: return_data=True only — no file output, just returns data
+        hash<auto> response3 = metadata_dp.doRequest({
+            "input_path": source_path,
+            "metadata": <PdfMetadata>{"title": "Mode3"},
+            "return_data": True,
+        });
+        assertEq(True, response3.success, "return_data only success");
+        assertTrue(exists response3.data, "return_data only returns data");
+        assertEq(False, exists response3.output_path, "return_data only has no output_path");
+
+        # Test 4: output_path + output_location — write to both
+        string output4 = testDir + "/output_mode4.pdf";
+        string output4_loc_path = testDir + "/output_mode4_loc.pdf";
+        string output4_loc = "file://" + output4_loc_path;
+        hash<auto> response4 = metadata_dp.doRequest({
+            "input_path": source_path,
+            "output_path": output4,
+            "output_location": output4_loc,
+            "metadata": <PdfMetadata>{"title": "Mode4"},
+        });
+        assertEq(True, response4.success, "dual output success");
+        assertTrue(is_file(output4), "output_path file created");
+        assertTrue(is_file(output4_loc_path), "output_location file created");
+        assertEq(False, exists response4.data, "dual output does not return data by default");
+
+        # Test 5: overwrite mode with editor-based action
+        string overwrite_path = testDir + "/output_overwrite.pdf";
+        createPdf(overwrite_path, "Overwrite test");
+
+        AbstractDataProvider rotate_dp = getDocumentProvider("rotate");
+        hash<auto> response5 = rotate_dp.doRequest({
+            "input_path": overwrite_path,
+            "overwrite": True,
+            "pages": (0,),
+            "degrees": 90,
+        });
+        assertEq(True, response5.success, "overwrite mode success");
+        assertEq(overwrite_path, response5.output_path, "overwrite returns input path");
+        assertTrue(is_file(overwrite_path), "overwrite file exists");
+    }
+
     # ==================== Negative Action Tests ====================
 
     negativeActionTest() {
         AbstractDataProvider create_dp = getDocumentProvider("create");
-        assertPdfError("create requires output_path", sub () {
-            create_dp.doRequest({
-                "page_count": 1,
-            });
+
+        # Creating without output_path returns data by default
+        hash<auto> data_response = create_dp.doRequest({
+            "page_count": 1,
         });
+        assertTrue(exists data_response.data, "create without output_path returns data");
+        assertTrue(data_response.size > 0, "create without output_path has positive size");
 
         assertPdfError("create requires page_count > 0", sub () {
             create_dp.doRequest({

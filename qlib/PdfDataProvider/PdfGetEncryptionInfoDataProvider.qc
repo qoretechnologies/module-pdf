@@ -76,7 +76,7 @@ public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfGetEncryptionInfoRequest>"));
+        return new PdfGetEncryptionInfoRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -84,17 +84,28 @@ public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfGetEncryptionInfoRequest> request = req;
+        hash<auto> request = req;
 
-        # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
+        @debug("getting encryption info: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
+
+        hash<auto> info;
+        if (request.input_path) {
+            # Use static method directly for file path input
+            info = PdfEditor::getEncryptionInfo(request.input_path, request.password);
+        } else {
+            # For data/location inputs, get binary data and write to temp file
+            binary pdf_data = PdfActionBase::getRendererData(request);
+            string tmp_dir = ENV.TMPDIR ?? (PlatformOS == "Windows" ? ENV.TEMP ?? "." : "/tmp");
+            string tmp_path = sprintf("%s/.pdf_enc_tmp_%d.pdf", tmp_dir, getpid());
+            PdfActionBase::writeBinaryFile(tmp_path, pdf_data);
+            on_exit {
+                if (is_file(tmp_path)) {
+                    unlink(tmp_path);
+                }
+            }
+            info = PdfEditor::getEncryptionInfo(tmp_path, request.password);
         }
-
-        @debug("getting encryption info: input=%y", request.input_path);
-
-        # Use static method to get encryption info
-        hash<auto> info = PdfEditor::getEncryptionInfo(request.input_path, request.password);
 
         @debug("encryption info: encrypted=%y algorithm=%y", info.encrypted, info.algorithm);
 

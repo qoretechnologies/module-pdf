@@ -27,6 +27,7 @@
 #define QORE_PDF_MODULE_H
 
 #include <qore/Qore.h>
+#include <qore/QoreSandboxManager.h>
 
 extern const TypedHashDecl* hashdeclPdfMetadata;
 extern const TypedHashDecl* hashdeclPdfRenderResult;

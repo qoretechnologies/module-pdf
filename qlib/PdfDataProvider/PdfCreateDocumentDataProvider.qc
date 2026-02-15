@@ -52,7 +52,7 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfCreateDocumentRequest>"));
+        return new PdfCreateDocumentRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,13 +60,10 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfCreateDocumentRequest> request = req;
+        hash<auto> request = req;
 
-        if (!request.output_path || request.output_path.size() == 0) {
-            throw "PDF-ERROR", "output_path is required";
-        }
-
-        @debug("creating document: output=%y", request.output_path);
+        @debug("creating document: output_path=%y output_location=%y",
+            request.output_path, request.output_location);
 
         PdfWriter writer();
 
@@ -130,13 +127,13 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
             throw "PDF-ERROR", "pages or page_count is required";
         }
 
-        writer.save(request.output_path);
+        binary pdf_data = writer.saveToMemory();
+        hash<auto> output = PdfActionBase::makeOutputResponse(pdf_data, request);
 
         hash<PdfCreateDocumentResponse> response();
         response.success = True;
-        response.output_path = request.output_path;
+        response += output;
         response.page_count = writer.pageCount();
-        response.size = hstat(request.output_path).size;
 
         @debug("document created: pages=%d size=%d", response.page_count, response.size);
 

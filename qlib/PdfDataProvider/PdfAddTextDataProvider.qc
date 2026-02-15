@@ -52,7 +52,7 @@ public class PdfAddTextDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfAddTextRequest>"));
+        return new PdfAddTextRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,26 +60,15 @@ public class PdfAddTextDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfAddTextRequest> request = req;
+        hash<auto> request = req;
 
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        PdfActionBase::validateOutputRequired(request);
 
-        # Determine output path
-        string output_path;
-        if (request.output_path) {
-            output_path = request.output_path;
-        } else if (request.overwrite) {
-            output_path = request.input_path;
-        } else {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
-        }
-
-        @debug("adding text: input=%y output=%y", request.input_path, output_path);
+        @debug("adding text: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
 
         # Load the document
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         int page_count = editor.pageCount();
 
         # Set font options if provided
@@ -131,22 +120,14 @@ public class PdfAddTextDataProvider inherits AbstractDataProvider {
         }
 
         # Save the document
-        if (output_path == request.input_path) {
-            # Save to temporary file then rename
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfAddTextResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.page_count = page_count;
         response.pages_modified = modified_pages.size();
         response.text_blocks_added = text_blocks_added;
-        response.size = hstat(output_path).size;
         response.warnings = warnings ? warnings : NOTHING;
 
         @debug("text added: count=%d pages_modified=%d", text_blocks_added, response.pages_modified);

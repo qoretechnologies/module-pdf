@@ -52,7 +52,7 @@ public class PdfExtractTextDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfExtractTextRequest>"));
+        return new PdfExtractTextRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,23 +60,26 @@ public class PdfExtractTextDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfExtractTextRequest> request = req;
+        hash<auto> request = req;
 
         if (!PdfRenderer::isAvailable()) {
             throw "PDF-ERROR", "PDFium support is not available";
-        }
-
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
         }
 
         if (request.page_index < 0) {
             throw "PDF-ERROR", "page_index must be non-negative";
         }
 
-        @debug("extracting text: input=%y page=%d", request.input_path, request.page_index);
+        @debug("extracting text: input_path=%y location=%y has_data=%y page=%d",
+            request.input_path, request.location, exists request.data, request.page_index);
 
-        string text = PdfRenderer::extractText(request.input_path, request.page_index);
+        string text;
+        if (request.input_path) {
+            text = PdfRenderer::extractText(request.input_path, request.page_index);
+        } else {
+            binary pdf_data = PdfActionBase::getRendererData(request);
+            text = PdfRenderer::extractTextFromData(pdf_data, request.page_index);
+        }
 
         hash<PdfExtractTextResponse> response();
         response.text = text;

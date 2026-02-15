@@ -74,7 +74,7 @@ public class PdfListSignaturesDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfListSignaturesRequest>"));
+        return new PdfListSignaturesRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -82,16 +82,12 @@ public class PdfListSignaturesDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfListSignaturesRequest> request = req;
+        hash<auto> request = req;
 
-        # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        @debug("listing signatures: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
 
-        @debug("listing signatures: input=%y", request.input_path);
-
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         list<hash<auto>> signatures = editor.getSignatures();
 
         hash<PdfListSignaturesResponse> response();

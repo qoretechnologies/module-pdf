@@ -52,6 +52,25 @@ PdfReader::constructor(string path, *string password) [dom=FILESYSTEM] {
     self->setPrivate(CID_PDFREADER, holder.release());
 }
 
+//! Opens a PDF from binary data for reading
+/** @param data binary PDF data
+    @param password optional password
+
+    @throw PDF-ERROR if the document cannot be opened
+*/
+PdfReader::constructor(binary data, *string password) {
+    if (!data || data->size() == 0) {
+        xsink->raiseException("PDF-ERROR", "data is required");
+        return;
+    }
+    ReferenceHolder<QorePdfReader> holder(new QorePdfReader(data,
+        password ? password->c_str() : "", xsink), xsink);
+    if (*xsink) {
+        return;
+    }
+    self->setPrivate(CID_PDFREADER, holder.release());
+}
+
 //! Returns the page count
 /** @return the number of pages
 

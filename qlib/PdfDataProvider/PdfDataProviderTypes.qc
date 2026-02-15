@@ -201,6 +201,115 @@ public enum PdfNamedColor : string {
     Pink = "pink",
 }
 
+# ========== Common Field Constants ==========
+
+#! Common input fields for actions that read a single PDF (input_path, data, or location - required group)
+const PdfInputFields = {
+    "input_path": {
+        "type": StringOrNothingType,
+        "display_name": "Input File Path",
+        "short_desc": "Path to input PDF file",
+        "desc": "File path to read the input PDF from. One of 'input_path', 'data', or "
+            "'location' must be provided.",
+        "example_value": "/path/to/document.pdf",
+    },
+    "data": {
+        "type": BinaryOrNothingType,
+        "display_name": "Input PDF Data",
+        "short_desc": "Binary PDF data",
+        "desc": "Binary data of the input PDF. One of 'input_path', 'data', or 'location' "
+            "must be provided.",
+    },
+    "location": {
+        "type": StringOrNothingType,
+        "display_name": "Input Location",
+        "short_desc": "Location of input PDF",
+        "desc": "A file location string as supported by the "
+            "[FileLocationHandler](https://docs.qore.org/current/modules/FileLocationHandler/html/index.html) "
+            "module (e.g. `file:///path/to/document.pdf`, `https://example.com/doc.pdf`). "
+            "One of 'input_path', 'data', or 'location' must be provided.",
+        "example_value": "file:///path/to/document.pdf",
+    },
+};
+
+#! Common password field
+const PdfPasswordField = {
+    "password": {
+        "type": StringOrNothingType,
+        "display_name": "Password",
+        "short_desc": "Optional PDF password",
+        "desc": "Optional password for encrypted PDFs",
+    },
+};
+
+#! Common output fields for actions that produce a PDF
+const PdfOutputFields = {
+    "output_path": {
+        "type": StringOrNothingType,
+        "display_name": "Output File Path",
+        "short_desc": "Path to write the output PDF to",
+        "desc": "File path to write the processed output PDF to. If neither 'output_path' nor "
+            "'output_location' is provided, the PDF data is returned in the response only.",
+        "example_value": "/path/to/output.pdf",
+    },
+    "output_location": {
+        "type": StringOrNothingType,
+        "display_name": "Output Location",
+        "short_desc": "Location to write the output PDF to",
+        "desc": "A file location string as supported by the "
+            "[FileLocationHandler](https://docs.qore.org/current/modules/FileLocationHandler/html/index.html) "
+            "module (e.g. `file:///path/to/output.pdf`, `sftp://host/path/output.pdf`). "
+            "If neither 'output_path' nor 'output_location' is provided, the PDF data is returned "
+            "in the response only.",
+        "example_value": "file:///path/to/output.pdf",
+    },
+    "return_data": {
+        "type": BoolOrNothingType,
+        "display_name": "Return Data",
+        "short_desc": "Whether to include PDF data in the response",
+        "desc": "Whether to include binary PDF data in the response hash. Defaults to True when "
+            "no output path or location is specified, False when an output destination is provided.",
+    },
+    "overwrite": {
+        "type": BoolOrNothingType,
+        "display_name": "Overwrite",
+        "short_desc": "Overwrite the input file",
+        "desc": "If true and output_path is not specified, the input file will be overwritten "
+            "(only applicable when input_path is used).",
+    },
+};
+
+#! Common output response fields for actions that produce a PDF
+const PdfOutputResponseFields = {
+    "data": {
+        "type": BinaryOrNothingType,
+        "display_name": "Output PDF Data",
+        "short_desc": "The processed PDF data",
+        "desc": "Binary data of the processed PDF. Only included when 'return_data' is true "
+            "(default when no output destination is specified).",
+    },
+    "output_path": {
+        "type": StringOrNothingType,
+        "display_name": "Output File Path",
+        "short_desc": "Path the output PDF was written to",
+        "desc": "File path where the output PDF was written, if 'output_path' was specified in "
+            "the request",
+    },
+    "output_location": {
+        "type": StringOrNothingType,
+        "display_name": "Output Location",
+        "short_desc": "Location the output PDF was written to",
+        "desc": "File location where the output PDF was written, if 'output_location' was "
+            "specified in the request",
+    },
+    "size": {
+        "type": IntType,
+        "display_name": "Size",
+        "short_desc": "Output data size in bytes",
+        "desc": "Size of the output PDF data in bytes",
+    },
+};
+
 # ========== Page Creation Types ==========
 
 #! Page specification for PDF creation
@@ -226,7 +335,13 @@ public hashdecl PdfCreatePageSpec {
 #! Request type for creating a PDF document
 public hashdecl PdfCreateDocumentRequest {
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Number of blank pages (used if pages is not set)
     *int page_count;
@@ -247,7 +362,13 @@ public hashdecl PdfCreateDocumentResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages created
     int page_count;
@@ -259,7 +380,13 @@ public hashdecl PdfCreateDocumentResponse {
 #! Request type for reading PDF document info
 public hashdecl PdfDocumentInfoRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Optional password
     *string password;
@@ -280,13 +407,25 @@ public hashdecl PdfDocumentInfoResponse {
 #! Request type for setting metadata
 public hashdecl PdfSetMetadataRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Metadata fields to set
     hash<Qore::Pdf::PdfMetadata> metadata;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -301,10 +440,19 @@ public hashdecl PdfSetMetadataResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages
     int page_count;
+
+    #! Output data size in bytes
+    int size;
 
     #! Warnings encountered while processing the document
     *list<string> warnings;
@@ -316,7 +464,13 @@ public hashdecl PdfMergeDocumentRequest {
     list<string> inputs;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Optional password for input files
     *string password;
@@ -328,7 +482,13 @@ public hashdecl PdfMergeDocumentResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages in the merged document
     int page_count;
@@ -343,7 +503,13 @@ public hashdecl PdfMergeDocumentResponse {
 #! Request type for splitting a document
 public hashdecl PdfSplitDocumentRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output directory
     string output_dir;
@@ -367,10 +533,22 @@ public hashdecl PdfSplitDocumentResponse {
 #! Request type for rotating pages
 public hashdecl PdfRotatePagesRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -391,10 +569,19 @@ public hashdecl PdfRotatePagesResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages
     int page_count;
+
+    #! Output data size in bytes
+    int size;
 
     #! Warnings encountered while processing the document
     *list<string> warnings;
@@ -403,7 +590,13 @@ public hashdecl PdfRotatePagesResponse {
 #! Request type for rendering a page
 public hashdecl PdfRenderPageRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Page index (zero-based)
     int page_index;
@@ -442,7 +635,13 @@ public hashdecl PdfRenderPageResponse {
 #! Request type for extracting text
 public hashdecl PdfExtractTextRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Page index (zero-based)
     int page_index;
@@ -508,10 +707,22 @@ public hashdecl PdfImagePlacement {
 #! Request type for adding images to a PDF
 public hashdecl PdfAddImageRequest {
     #! Input PDF file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -535,7 +746,13 @@ public hashdecl PdfAddImageResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages in the document
     int page_count;
@@ -585,10 +802,22 @@ public hashdecl PdfTextPlacement {
 #! Request type for adding text to a PDF
 public hashdecl PdfAddTextRequest {
     #! Input PDF file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -615,7 +844,13 @@ public hashdecl PdfAddTextResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages in the document
     int page_count;
@@ -708,10 +943,22 @@ public hashdecl PdfWatermarkSpec {
 #! Request type for adding watermarks to a PDF
 public hashdecl PdfAddWatermarkRequest {
     #! Input PDF file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -732,7 +979,13 @@ public hashdecl PdfAddWatermarkResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages in the document
     int page_count;
@@ -789,10 +1042,22 @@ public hashdecl PdfSignatureFieldSpec {
 #! Request type for adding signature fields to a PDF
 public hashdecl PdfAddSignatureFieldRequest {
     #! Input PDF file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -813,7 +1078,13 @@ public hashdecl PdfAddSignatureFieldResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of pages in the document
     int page_count;
@@ -886,7 +1157,13 @@ public hashdecl PdfFormFieldInfo {
 #! Request type for listing form fields
 public hashdecl PdfListFormFieldsRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Optional password for encrypted PDFs
     *string password;
@@ -907,7 +1184,13 @@ public hashdecl PdfListFormFieldsResponse {
 #! Request type for getting form data
 public hashdecl PdfGetFormDataRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Optional password for encrypted PDFs
     *string password;
@@ -931,10 +1214,22 @@ public hashdecl PdfGetFormDataResponse {
 #! Request type for filling form fields
 public hashdecl PdfFillFormRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -943,7 +1238,7 @@ public hashdecl PdfFillFormRequest {
     *string password;
 
     #! Field name to value mapping
-    hash<auto> data;
+    hash<auto> form_data;
 
     #! Convert fields to static content after filling
     *bool flatten;
@@ -955,7 +1250,13 @@ public hashdecl PdfFillFormResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of fields filled
     int fields_filled;
@@ -1029,10 +1330,22 @@ public hashdecl PdfFormFieldSpec {
 #! Request type for creating form fields
 public hashdecl PdfCreateFormFieldRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -1053,7 +1366,13 @@ public hashdecl PdfCreateFormFieldResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Number of fields created
     int fields_created;
@@ -1102,11 +1421,23 @@ public hashdecl PdfPermissions {
     provides restricted access based on the specified permissions.
 */
 public hashdecl PdfEncryptRequest {
-    #! Input file path (required)
-    string input_path;
+    #! Input file path
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     /** If true and output_path is not specified, the input file will be overwritten.
@@ -1148,7 +1479,13 @@ public hashdecl PdfEncryptResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Algorithm used
     string algorithm;
@@ -1160,10 +1497,22 @@ public hashdecl PdfEncryptResponse {
 #! Request type for decrypting a PDF
 public hashdecl PdfDecryptRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -1178,7 +1527,13 @@ public hashdecl PdfDecryptResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Output file size in bytes
     int size;
@@ -1187,7 +1542,13 @@ public hashdecl PdfDecryptResponse {
 #! Request type for getting encryption info
 public hashdecl PdfGetEncryptionInfoRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Optional password
     *string password;
@@ -1246,10 +1607,22 @@ public hashdecl PdfDigitalSignatureFieldSpec {
 #! Request type for creating a digital signature field
 public hashdecl PdfCreateDigitalSignatureFieldRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -1267,7 +1640,13 @@ public hashdecl PdfCreateDigitalSignatureFieldResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Field name created
     string field_name;
@@ -1287,11 +1666,23 @@ public hashdecl PdfCreateDigitalSignatureFieldResponse {
     Either private_key_path or private_key_data must be provided.
 */
 public hashdecl PdfSignRequest {
-    #! Input file path (required)
-    string input_path;
+    #! Input file path
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string input_location;
 
     #! Output file path (optional if overwrite is true)
     *string output_path;
+
+    #! Output location (FileLocationHandler string)
+    *string output_location;
+
+    #! Whether to return binary PDF data in response
+    *bool return_data;
 
     #! Overwrite the input file if true
     *bool overwrite;
@@ -1349,7 +1740,13 @@ public hashdecl PdfSignResponse {
     bool success;
 
     #! Output file path
-    string output_path;
+    *string output_path;
+
+    #! Output location
+    *string output_location;
+
+    #! Binary PDF data (when return_data is true)
+    *binary data;
 
     #! Field name signed
     string field_name;
@@ -1382,7 +1779,13 @@ public hashdecl PdfSignatureInfo {
 #! Request type for listing signatures
 public hashdecl PdfListSignaturesRequest {
     #! Input file path
-    string input_path;
+    *string input_path;
+
+    #! Binary PDF data
+    *binary data;
+
+    #! Input location (FileLocationHandler string)
+    *string location;
 
     #! Optional password for encrypted PDFs
     *string password;
@@ -1398,5 +1801,464 @@ public hashdecl PdfListSignaturesResponse {
 
     #! Number of signatures found
     int signature_count;
+}
+
+# ========== HashDataType Request Classes ==========
+
+#! Document info request type with required input group
+public class PdfDocumentInfoRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Set metadata request type with required input group
+public class PdfSetMetadataRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields({
+            "metadata": {
+                "type": new Type("hash<Qore::Pdf::PdfMetadata>"),
+                "display_name": "Metadata",
+                "short_desc": "Metadata fields to set",
+                "desc": "Document metadata fields to set (title, author, subject, keywords, creator, producer)",
+            },
+        });
+        addQoreFields(PdfOutputFields);
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Merge request type
+public class PdfMergeDocumentRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields({
+            "inputs": {
+                "type": new Type("list<string>"),
+                "display_name": "Input Paths",
+                "short_desc": "List of input PDF file paths",
+                "desc": "List of PDF file paths to merge into a single document",
+            },
+        });
+        addQoreFields(PdfOutputFields - "overwrite");
+        addQoreFields(PdfPasswordField);
+    }
+}
+
+#! Split request type with required input group
+public class PdfSplitDocumentRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields({
+            "output_dir": {
+                "type": StringType,
+                "display_name": "Output Directory",
+                "short_desc": "Output directory for split pages",
+                "desc": "Directory to write the split single-page PDF files to",
+            },
+            "prefix": {
+                "type": StringType,
+                "display_name": "Filename Prefix",
+                "short_desc": "Output filename prefix",
+                "desc": "Prefix for output filenames",
+                "default_value": "page_",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Rotate pages request type with required input group
+public class PdfRotatePagesRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "pages": {
+                "type": new Type("list<int>"),
+                "display_name": "Pages",
+                "short_desc": "Page indices to rotate (zero-based)",
+                "desc": "List of zero-based page indices to rotate",
+            },
+            "degrees": {
+                "type": IntType,
+                "display_name": "Degrees",
+                "short_desc": "Rotation in degrees",
+                "desc": "Rotation angle in degrees (must be a multiple of 90)",
+            },
+        });
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Add image request type with required input group
+public class PdfAddImageRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "page_selection": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Page Selection",
+                "short_desc": "Pages to modify",
+                "desc": "Page selection specification (default: first page)",
+            },
+            "image": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Image",
+                "short_desc": "Single image placement",
+                "desc": "Single image placement specification",
+            },
+            "placements": {
+                "type": new Type("*list<hash<auto>>"),
+                "display_name": "Placements",
+                "short_desc": "Multiple image placements",
+                "desc": "List of image placement specifications",
+            },
+        });
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Add text request type with required input group
+public class PdfAddTextRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "page_selection": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Page Selection",
+                "short_desc": "Pages to modify",
+                "desc": "Page selection specification (default: first page)",
+            },
+            "text": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Text",
+                "short_desc": "Single text block",
+                "desc": "Single text placement specification",
+            },
+            "placements": {
+                "type": new Type("*list<hash<auto>>"),
+                "display_name": "Placements",
+                "short_desc": "Multiple text blocks",
+                "desc": "List of text placement specifications",
+            },
+            "font_options": {
+                "type": new Type("*hash<Qore::Pdf::PdfFontOptions>"),
+                "display_name": "Font Options",
+                "short_desc": "Font embedding options",
+                "desc": "Optional font embedding and subsetting options",
+            },
+        });
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Add watermark request type with required input group
+public class PdfAddWatermarkRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "page_selection": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Page Selection",
+                "short_desc": "Pages to watermark",
+                "desc": "Page selection specification (default: all pages)",
+            },
+            "watermark": {
+                "type": AutoHashType,
+                "display_name": "Watermark",
+                "short_desc": "Watermark specification",
+                "desc": "Watermark properties (type, text/image, opacity, rotation, etc.)",
+            },
+        });
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Add signature field request type with required input group
+public class PdfAddSignatureFieldRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "page_selection": {
+                "type": AutoHashOrNothingType,
+                "display_name": "Page Selection",
+                "short_desc": "Pages to add signature to",
+                "desc": "Page selection specification (default: last page)",
+            },
+            "signature": {
+                "type": AutoHashType,
+                "display_name": "Signature",
+                "short_desc": "Signature field specification",
+                "desc": "Signature field properties (image, position, label, etc.)",
+            },
+        });
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! List form fields request type with required input group
+public class PdfListFormFieldsRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Get form data request type with required input group
+public class PdfGetFormDataRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfPasswordField);
+        addQoreFields({
+            "fields": {
+                "type": new Type("*list<string>"),
+                "display_name": "Fields",
+                "short_desc": "Specific fields to get",
+                "desc": "List of specific field names to get (default: all fields)",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Fill form request type with required input group
+public class PdfFillFormRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields(PdfPasswordField);
+        addQoreFields({
+            "form_data": {
+                "type": AutoHashType,
+                "display_name": "Form Data",
+                "short_desc": "Field name to value mapping",
+                "desc": "Hash mapping form field names to their values",
+            },
+            "flatten": {
+                "type": BoolOrNothingType,
+                "display_name": "Flatten",
+                "short_desc": "Convert fields to static content",
+                "desc": "Convert fields to static content after filling",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Create form field request type with required input group
+public class PdfCreateFormFieldRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields(PdfPasswordField);
+        addQoreFields({
+            "field": {
+                "type": new Type("*hash<PdfFormFieldSpec>"),
+                "display_name": "Field",
+                "short_desc": "Single field specification",
+                "desc": "Single form field specification",
+            },
+            "fields": {
+                "type": new Type("*list<hash<PdfFormFieldSpec>>"),
+                "display_name": "Fields",
+                "short_desc": "Multiple field specifications",
+                "desc": "List of form field specifications",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Encrypt request type with required input group
+public class PdfEncryptRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "input_password": {
+                "type": StringOrNothingType,
+                "display_name": "Input Password",
+                "short_desc": "Password if input is already encrypted",
+                "desc": "Optional password if the input document is already encrypted",
+            },
+            "owner_password": {
+                "type": StringType,
+                "display_name": "Owner Password",
+                "short_desc": "Owner password for encryption",
+                "desc": "The owner password provides full access to the document",
+            },
+            "user_password": {
+                "type": StringOrNothingType,
+                "display_name": "User Password",
+                "short_desc": "User password for restricted access",
+                "desc": "Optional user password for restricted access",
+            },
+            "algorithm": {
+                "type": StringType,
+                "display_name": "Algorithm",
+                "short_desc": "Encryption algorithm",
+                "desc": "Encryption algorithm",
+                "default_value": PdfEncryptionAlgorithm::Aes256,
+                "allowed_values": (
+                    <AllowedValueInfo>{"value": PdfEncryptionAlgorithm::Aes256, "desc": "256-bit AES (recommended)"},
+                    <AllowedValueInfo>{"value": PdfEncryptionAlgorithm::Aes128, "desc": "128-bit AES"},
+                    <AllowedValueInfo>{"value": PdfEncryptionAlgorithm::Rc4_128, "desc": "128-bit RC4 (legacy)"},
+                    <AllowedValueInfo>{"value": PdfEncryptionAlgorithm::Rc4_40, "desc": "40-bit RC4 (legacy)"},
+                ),
+            },
+            "permissions": {
+                "type": new Type("*hash<PdfPermissions>"),
+                "display_name": "Permissions",
+                "short_desc": "Document permissions",
+                "desc": "Document permission restrictions for user password access",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Decrypt request type with required input group
+public class PdfDecryptRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields({
+            "password": {
+                "type": StringType,
+                "display_name": "Password",
+                "short_desc": "Owner password for decryption",
+                "desc": "Owner password required for decryption",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Get encryption info request type with required input group
+public class PdfGetEncryptionInfoRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Create digital signature field request type with required input group
+public class PdfCreateDigitalSignatureFieldRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfOutputFields);
+        addQoreFields(PdfPasswordField);
+        addQoreFields({
+            "field": {
+                "type": new Type("hash<PdfDigitalSignatureFieldSpec>"),
+                "display_name": "Field",
+                "short_desc": "Signature field specification",
+                "desc": "Digital signature field specification (name, page, position, etc.)",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! List signatures request type with required input group
+public class PdfListSignaturesRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields(PdfPasswordField);
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Render page request type with required input group
+public class PdfRenderPageRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields({
+            "page_index": {
+                "type": IntType,
+                "display_name": "Page Index",
+                "short_desc": "Page index (zero-based)",
+                "desc": "Zero-based index of the page to render",
+            },
+            "dpi": {
+                "type": IntType,
+                "display_name": "DPI",
+                "short_desc": "DPI resolution",
+                "desc": "Resolution in dots per inch",
+                "default_value": 150,
+            },
+            "output_path": {
+                "type": StringOrNothingType,
+                "display_name": "Output File Path",
+                "short_desc": "Path to write raw BGRA data",
+                "desc": "Optional file path to write the raw BGRA pixel data to",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Extract text request type with required input group
+public class PdfExtractTextRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfInputFields);
+        addQoreFields({
+            "page_index": {
+                "type": IntType,
+                "display_name": "Page Index",
+                "short_desc": "Page index (zero-based)",
+                "desc": "Zero-based index of the page to extract text from",
+            },
+        });
+        setRequiredGroups((("input_path", "data", "location"),));
+    }
+}
+
+#! Create document request type
+public class PdfCreateDocumentRequestDataType inherits HashDataType {
+    constructor() {
+        addQoreFields(PdfOutputFields - "overwrite");
+        addQoreFields({
+            "page_count": {
+                "type": IntOrNothingType,
+                "display_name": "Page Count",
+                "short_desc": "Number of blank pages",
+                "desc": "Number of blank pages to create (used if pages is not specified)",
+            },
+            "pages": {
+                "type": new Type("*list<hash<PdfCreatePageSpec>>"),
+                "display_name": "Pages",
+                "short_desc": "Page specifications",
+                "desc": "Detailed page specifications (blank or text pages with optional dimensions)",
+            },
+            "metadata": {
+                "type": new Type("*hash<Qore::Pdf::PdfMetadata>"),
+                "display_name": "Metadata",
+                "short_desc": "Document metadata",
+                "desc": "Optional document metadata (title, author, etc.)",
+            },
+            "font_options": {
+                "type": new Type("*hash<Qore::Pdf::PdfFontOptions>"),
+                "display_name": "Font Options",
+                "short_desc": "Font embedding options",
+                "desc": "Optional font embedding and subsetting options",
+            },
+        });
+    }
 }
 }

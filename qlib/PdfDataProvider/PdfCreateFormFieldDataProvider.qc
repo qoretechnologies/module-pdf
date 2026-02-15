@@ -80,7 +80,7 @@ public class PdfCreateFormFieldDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfCreateFormFieldRequest>"));
+        return new PdfCreateFormFieldRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -88,17 +88,13 @@ public class PdfCreateFormFieldDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfCreateFormFieldRequest> request = req;
+        hash<auto> request = req;
+
+        PdfActionBase::validateOutputRequired(request);
 
         # Validate required fields
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
         if (!request.field && !request.fields) {
             throw "PDF-ERROR", "either field or fields must be specified";
-        }
-        if (!request.output_path && !request.overwrite) {
-            throw "PDF-ERROR", "either output_path or overwrite must be specified";
         }
 
         # Get field specifications
@@ -110,13 +106,10 @@ public class PdfCreateFormFieldDataProvider inherits AbstractDataProvider {
             field_specs += request.fields;
         }
 
-        # Determine output path
-        string output_path = request.output_path ?? request.input_path;
+        @debug("creating form fields: input_path=%y location=%y has_data=%y field_count=%d",
+            request.input_path, request.location, exists request.data, field_specs.size());
 
-        @debug("creating form fields: input=%y output=%y field_count=%d",
-            request.input_path, output_path, field_specs.size());
-
-        PdfEditor editor(request.input_path, request.password);
+        PdfEditor editor = PdfActionBase::loadEditor(request);
         list<string> warnings = ();
         int fields_created = 0;
 
@@ -191,19 +184,12 @@ public class PdfCreateFormFieldDataProvider inherits AbstractDataProvider {
         }
 
         # Save the document
-        if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
-        } else {
-            editor.save(output_path);
-        }
+        hash<auto> output = PdfActionBase::saveEditorOutput(editor, request);
 
         hash<PdfCreateFormFieldResponse> response();
         response.success = True;
-        response.output_path = output_path;
+        response += output;
         response.fields_created = fields_created;
-        response.size = hstat(output_path).size;
         response.warnings = warnings ? warnings : NOTHING;
 
         @debug("form fields created: count=%d warnings=%d", fields_created, warnings.size());

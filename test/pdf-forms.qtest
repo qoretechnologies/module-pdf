@@ -289,7 +289,7 @@ public class PdfFormsTest inherits QUnit::Test {
         auto response = dp.doRequest({
             "input_path": inputPdf,
             "output_path": outPdf,
-            "data": {
+            "form_data": {
                 "first_name": "John",
                 "last_name": "Doe",
                 "agreed": True,
@@ -417,7 +417,7 @@ public class PdfFormsTest inherits QUnit::Test {
             dp.doRequest({});
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing input_path throws PDF-ERROR");
+            assertEq("REQUIRED-FIELD-GROUP-ERROR", ex.err, "missing input_path throws REQUIRED-FIELD-GROUP-ERROR");
         }
         assertTrue(thrown, "missing input_path throws");
     }
@@ -445,7 +445,7 @@ public class PdfFormsTest inherits QUnit::Test {
         auto response = dp.doRequest({
             "input_path": overwritePdf,
             "overwrite": True,
-            "data": {
+            "form_data": {
                 "overwrite_field": "Overwritten Value",
             },
         });

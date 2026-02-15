@@ -41,6 +41,7 @@ public:
     void setMetadata(const QoreHashNode* metadata, ExceptionSink* xsink);
     void setFontOptions(const QoreHashNode* opts, ExceptionSink* xsink);
     void save(const std::string& path, ExceptionSink* xsink);
+    BinaryNode* saveToMemory(ExceptionSink* xsink);
 
 private:
     PoDoFo::PdfMemDocument doc;

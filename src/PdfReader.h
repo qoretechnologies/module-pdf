@@ -36,6 +36,10 @@ public:
             : doc(path, password, xsink) {
     }
 
+    QorePdfReader(const BinaryNode* data, const std::string& password, ExceptionSink* xsink)
+            : doc(data, password, xsink) {
+    }
+
     int pageCount(ExceptionSink* xsink) {
         return doc.pageCount(xsink);
     }

@@ -44,10 +44,40 @@ QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
 
 QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd, ExceptionSink* xsink)
         : password(pwd) {
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF document load")) {
+        return;
+    }
+
     try {
         qpdf = std::make_unique<QPDF>();
         qpdf->setSuppressWarnings(true);
         qpdf->processFile(path.c_str(), pwd.empty() ? nullptr : pwd.c_str());
+        has_doc = true;
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+    }
+}
+
+QorePdfDocument::QorePdfDocument(const BinaryNode* data, const std::string& pwd, ExceptionSink* xsink)
+        : binary_data(static_cast<BinaryNode*>(data->refSelf())), password(pwd) {
+    if (!data || data->size() == 0) {
+        pdf_error(xsink, "binary data is empty");
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF document load from memory")) {
+        return;
+    }
+
+    try {
+        qpdf = std::make_unique<QPDF>();
+        qpdf->setSuppressWarnings(true);
+        // processMemoryFile requires the buffer to remain valid for the lifetime of the QPDF object
+        qpdf->processMemoryFile("memory", reinterpret_cast<const char*>(data->getPtr()),
+            data->size(), pwd.empty() ? nullptr : pwd.c_str());
         has_doc = true;
     } catch (const std::exception& e) {
         pdf_error(xsink, e.what());
@@ -162,11 +192,43 @@ void QorePdfDocument::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF document save")) {
+        return;
+    }
+
     try {
         QPDFWriter writer(*qpdf, path.c_str());
         writer.write();
     } catch (const std::exception& e) {
         pdf_error(xsink, e.what());
+    }
+}
+
+BinaryNode* QorePdfDocument::toData(ExceptionSink* xsink) {
+    if (!has_doc) {
+        pdf_error(xsink, "PDF document is not initialized");
+        return nullptr;
+    }
+
+    if (qore_check_io_interrupt(xsink, "PDF document serialize")) {
+        return nullptr;
+    }
+
+    try {
+        QPDFWriter writer(*qpdf);
+        writer.setOutputMemory();
+        writer.write();
+        Buffer* buf = writer.getBuffer();
+        SimpleRefHolder<BinaryNode> result(new BinaryNode);
+        result->append(buf->getBuffer(), buf->getSize());
+        return result.release();
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+        return nullptr;
     }
 }
 
@@ -211,18 +273,30 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         return nullptr;
     }
 
+    if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+        return nullptr;
+    }
+
+    QoreSandboxManagerHelper smh;
+
     try {
         auto out_qpdf = std::make_unique<QPDF>();
         out_qpdf->emptyPDF();
         QPDFPageDocumentHelper out_pdh(*out_qpdf);
 
         for (size_t i = 0; i < inputs->size(); ++i) {
+            if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+                return nullptr;
+            }
             QoreValue val = inputs->retrieveEntry(i);
             if (val.getType() != NT_STRING) {
                 pdf_error(xsink, "Input list must contain strings");
                 return nullptr;
             }
             const QoreStringNode* path = val.get<const QoreStringNode>();
+            if (smh && !smh->checkFilesystemAccess(path->c_str(), QSEC_READ, xsink)) {
+                return nullptr;
+            }
             QPDF in_qpdf;
             in_qpdf.setSuppressWarnings(true);
             in_qpdf.processFile(path->c_str(), pwd.empty() ? nullptr : pwd.c_str());
@@ -253,6 +327,11 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         return nullptr;
     }
 
+    if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+        return nullptr;
+    }
+
+    QoreSandboxManagerHelper smh;
     warnings = new QoreListNode();
 
     try {
@@ -261,12 +340,18 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         QPDFPageDocumentHelper out_pdh(*out_qpdf);
 
         for (size_t i = 0; i < inputs->size(); ++i) {
+            if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+                return nullptr;
+            }
             QoreValue val = inputs->retrieveEntry(i);
             if (val.getType() != NT_STRING) {
                 pdf_error(xsink, "Input list must contain strings");
                 return nullptr;
             }
             const QoreStringNode* path = val.get<const QoreStringNode>();
+            if (smh && !smh->checkFilesystemAccess(path->c_str(), QSEC_READ, xsink)) {
+                return nullptr;
+            }
             QPDF in_qpdf;
             in_qpdf.setSuppressWarnings(true);
             in_qpdf.processFile(path->c_str(), pwd.empty() ? nullptr : pwd.c_str());
@@ -295,6 +380,17 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         const std::string& prefix, ExceptionSink* xsink) {
     QoreListNode* outputs = new QoreListNode();
 
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
+        return outputs;
+    }
+    if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return outputs;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF document split")) {
+        return outputs;
+    }
+
     try {
         QPDF in_qpdf;
         in_qpdf.setSuppressWarnings(true);
@@ -303,6 +399,9 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         auto pages = pdh.getAllPages();
 
         for (size_t i = 0; i < pages.size(); ++i) {
+            if (qore_check_io_interrupt(xsink, "PDF document split")) {
+                return outputs;
+            }
             QPDF out_qpdf;
             out_qpdf.emptyPDF();
             QPDFPageDocumentHelper out_pdh(out_qpdf);
@@ -329,6 +428,17 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
     QoreListNode* outputs = new QoreListNode();
     warnings = new QoreListNode();
 
+    QoreSandboxManagerHelper smh;
+    if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
+        return outputs;
+    }
+    if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return outputs;
+    }
+    if (qore_check_io_interrupt(xsink, "PDF document split")) {
+        return outputs;
+    }
+
     try {
         QPDF in_qpdf;
         in_qpdf.setSuppressWarnings(true);
@@ -345,6 +455,9 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
         auto pages = pdh.getAllPages();
 
         for (size_t i = 0; i < pages.size(); ++i) {
+            if (qore_check_io_interrupt(xsink, "PDF document split")) {
+                return outputs;
+            }
             QPDF out_qpdf;
             out_qpdf.emptyPDF();
             QPDFPageDocumentHelper out_pdh(out_qpdf);

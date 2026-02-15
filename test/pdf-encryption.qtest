@@ -347,7 +347,7 @@ public class PdfEncryptionTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing owner_password throws PDF-ERROR");
+            assertEq("INVALID-REQUEST", ex.err, "missing owner_password throws INVALID-REQUEST");
         }
         assertTrue(thrown, "missing owner_password throws");
     }

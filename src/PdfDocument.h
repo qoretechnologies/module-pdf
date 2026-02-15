@@ -40,12 +40,14 @@
 class QorePdfDocument : public AbstractPrivateData {
 public:
     QorePdfDocument(const std::string& path, const std::string& password, ExceptionSink* xsink);
+    QorePdfDocument(const BinaryNode* data, const std::string& password, ExceptionSink* xsink);
     QorePdfDocument(std::unique_ptr<QPDF> doc);
 
     int pageCount(ExceptionSink* xsink);
     QoreHashNode* getMetadata(ExceptionSink* xsink);
     void setMetadata(const QoreHashNode* metadata, ExceptionSink* xsink);
     void save(const std::string& path, ExceptionSink* xsink);
+    BinaryNode* toData(ExceptionSink* xsink);
     void rotatePages(const QoreListNode* pages, int degrees, ExceptionSink* xsink);
 
     //! Returns any warnings generated during document operations
@@ -65,6 +67,7 @@ public:
 
 private:
     std::unique_ptr<QPDF> qpdf;
+    SimpleRefHolder<BinaryNode> binary_data;
     std::string password;
     bool has_doc = false;
 

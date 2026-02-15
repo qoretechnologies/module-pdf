@@ -52,7 +52,7 @@ public class PdfDocumentInfoDataProvider inherits AbstractDataProvider {
     }
 
     private *AbstractDataProviderType getRequestTypeImpl() {
-        return AbstractDataProviderType::get(new Type("hash<PdfDocumentInfoRequest>"));
+        return new PdfDocumentInfoRequestDataType();
     }
 
     private *AbstractDataProviderType getResponseTypeImpl() {
@@ -60,15 +60,12 @@ public class PdfDocumentInfoDataProvider inherits AbstractDataProvider {
     }
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
-        hash<PdfDocumentInfoRequest> request = req;
+        hash<auto> request = req;
 
-        if (!request.input_path || request.input_path.size() == 0) {
-            throw "PDF-ERROR", "input_path is required";
-        }
+        @debug("getting document info: input_path=%y location=%y has_data=%y",
+            request.input_path, request.location, exists request.data);
 
-        @debug("getting document info: input=%y", request.input_path);
-
-        PdfDocument doc(request.input_path, request.password);
+        PdfDocument doc = PdfActionBase::loadDocument(request);
 
         hash<PdfDocumentInfoResponse> response();
         response.page_count = doc.pageCount();
