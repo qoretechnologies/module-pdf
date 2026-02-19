@@ -267,15 +267,15 @@ const PdfOutputFields = {
         "type": BoolOrNothingType,
         "display_name": "Return Data",
         "short_desc": "Whether to include PDF data in the response",
-        "desc": "Whether to include binary PDF data in the response hash. Defaults to True when "
-            "no output path or location is specified, False when an output destination is provided.",
+        "desc": "Whether to include binary PDF data in the response hash. Defaults to `True` when "
+            "no output path or location is specified, `False` when an output destination is provided.",
     },
     "overwrite": {
         "type": BoolOrNothingType,
         "display_name": "Overwrite",
         "short_desc": "Overwrite the input file",
-        "desc": "If true and output_path is not specified, the input file will be overwritten "
-            "(only applicable when input_path is used).",
+        "desc": "If `true` and `output_path` is not specified, the input file will be overwritten "
+            "(only applicable when `input_path` is used).",
     },
 };
 
@@ -285,7 +285,7 @@ const PdfOutputResponseFields = {
         "type": BinaryOrNothingType,
         "display_name": "Output PDF Data",
         "short_desc": "The processed PDF data",
-        "desc": "Binary data of the processed PDF. Only included when 'return_data' is true "
+        "desc": "Binary data of the processed PDF. Only included when `return_data` is `true` "
             "(default when no output destination is specified).",
     },
     "output_path": {
@@ -1823,7 +1823,7 @@ public class PdfSetMetadataRequestDataType inherits HashDataType {
                 "type": new Type("hash<Qore::Pdf::PdfMetadata>"),
                 "display_name": "Metadata",
                 "short_desc": "Metadata fields to set",
-                "desc": "Document metadata fields to set (title, author, subject, keywords, creator, producer)",
+                "desc": "Document metadata fields to set (`title`, `author`, `subject`, `keywords`, `creator`, `producer`)",
             },
         });
         addQoreFields(PdfOutputFields);
@@ -2238,7 +2238,7 @@ public class PdfCreateDocumentRequestDataType inherits HashDataType {
                 "type": IntOrNothingType,
                 "display_name": "Page Count",
                 "short_desc": "Number of blank pages",
-                "desc": "Number of blank pages to create (used if pages is not specified)",
+                "desc": "Number of blank pages to create (used if `pages` is not specified)",
             },
             "pages": {
                 "type": new Type("*list<hash<PdfCreatePageSpec>>"),
