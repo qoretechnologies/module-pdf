@@ -48,7 +48,7 @@ QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF document load")) {
+    if (qore_check_cancel(xsink, "PDF document load")) {
         return;
     }
 
@@ -68,7 +68,7 @@ QorePdfDocument::QorePdfDocument(const BinaryNode* data, const std::string& pwd,
         pdf_error(xsink, "binary data is empty");
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF document load from memory")) {
+    if (qore_check_cancel(xsink, "PDF document load from memory")) {
         return;
     }
 
@@ -196,7 +196,7 @@ void QorePdfDocument::save(const std::string& path, ExceptionSink* xsink) {
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF document save")) {
+    if (qore_check_cancel(xsink, "PDF document save")) {
         return;
     }
 
@@ -214,7 +214,7 @@ BinaryNode* QorePdfDocument::toData(ExceptionSink* xsink) {
         return nullptr;
     }
 
-    if (qore_check_io_interrupt(xsink, "PDF document serialize")) {
+    if (qore_check_cancel(xsink, "PDF document serialize")) {
         return nullptr;
     }
 
@@ -273,7 +273,7 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         return nullptr;
     }
 
-    if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+    if (qore_check_cancel(xsink, "PDF document merge")) {
         return nullptr;
     }
 
@@ -285,7 +285,7 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         QPDFPageDocumentHelper out_pdh(*out_qpdf);
 
         for (size_t i = 0; i < inputs->size(); ++i) {
-            if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+            if (qore_check_cancel(xsink, "PDF document merge")) {
                 return nullptr;
             }
             QoreValue val = inputs->retrieveEntry(i);
@@ -327,7 +327,7 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         return nullptr;
     }
 
-    if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+    if (qore_check_cancel(xsink, "PDF document merge")) {
         return nullptr;
     }
 
@@ -340,7 +340,7 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         QPDFPageDocumentHelper out_pdh(*out_qpdf);
 
         for (size_t i = 0; i < inputs->size(); ++i) {
-            if (qore_check_io_interrupt(xsink, "PDF document merge")) {
+            if (qore_check_cancel(xsink, "PDF document merge")) {
                 return nullptr;
             }
             QoreValue val = inputs->retrieveEntry(i);
@@ -387,7 +387,7 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
     if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return outputs;
     }
-    if (qore_check_io_interrupt(xsink, "PDF document split")) {
+    if (qore_check_cancel(xsink, "PDF document split")) {
         return outputs;
     }
 
@@ -399,7 +399,7 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         auto pages = pdh.getAllPages();
 
         for (size_t i = 0; i < pages.size(); ++i) {
-            if (qore_check_io_interrupt(xsink, "PDF document split")) {
+            if (qore_check_cancel(xsink, "PDF document split")) {
                 return outputs;
             }
             QPDF out_qpdf;
@@ -435,7 +435,7 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
     if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return outputs;
     }
-    if (qore_check_io_interrupt(xsink, "PDF document split")) {
+    if (qore_check_cancel(xsink, "PDF document split")) {
         return outputs;
     }
 
@@ -455,7 +455,7 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
         auto pages = pdh.getAllPages();
 
         for (size_t i = 0; i < pages.size(); ++i) {
-            if (qore_check_io_interrupt(xsink, "PDF document split")) {
+            if (qore_check_cancel(xsink, "PDF document split")) {
                 return outputs;
             }
             QPDF out_qpdf;

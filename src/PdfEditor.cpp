@@ -95,7 +95,7 @@ QorePdfEditor::QorePdfEditor(const std::string& path, const std::string& passwor
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF editor load")) {
+    if (qore_check_cancel(xsink, "PDF editor load")) {
         return;
     }
 
@@ -117,7 +117,7 @@ QorePdfEditor::QorePdfEditor(const BinaryNode* data, const std::string& password
         pdf_error(xsink, "binary data is empty");
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF editor load from memory")) {
+    if (qore_check_cancel(xsink, "PDF editor load from memory")) {
         return;
     }
 
@@ -421,7 +421,7 @@ void QorePdfEditor::drawImage(int pageIndex, const std::string& imagePath,
     if (smh && !smh->checkFilesystemAccess(imagePath.c_str(), QSEC_READ, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF draw image")) {
+    if (qore_check_cancel(xsink, "PDF draw image")) {
         return;
     }
 
@@ -690,7 +690,7 @@ void QorePdfEditor::save(const std::string& path, ExceptionSink* xsink) {
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF editor save")) {
+    if (qore_check_cancel(xsink, "PDF editor save")) {
         return;
     }
 

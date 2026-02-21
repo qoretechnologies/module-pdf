@@ -203,7 +203,7 @@ QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_inde
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
-    if (qore_check_io_interrupt(xsink, "PDF render page")) {
+    if (qore_check_cancel(xsink, "PDF render page")) {
         return nullptr;
     }
 
@@ -262,7 +262,7 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
-    if (qore_check_io_interrupt(xsink, "PDF extract text")) {
+    if (qore_check_cancel(xsink, "PDF extract text")) {
         return nullptr;
     }
 

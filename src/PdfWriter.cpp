@@ -165,7 +165,7 @@ void QorePdfWriter::save(const std::string& path, ExceptionSink* xsink) {
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }
-    if (qore_check_io_interrupt(xsink, "PDF writer save")) {
+    if (qore_check_cancel(xsink, "PDF writer save")) {
         return;
     }
 
@@ -177,7 +177,7 @@ void QorePdfWriter::save(const std::string& path, ExceptionSink* xsink) {
 }
 
 BinaryNode* QorePdfWriter::saveToMemory(ExceptionSink* xsink) {
-    if (qore_check_io_interrupt(xsink, "PDF writer save to memory")) {
+    if (qore_check_cancel(xsink, "PDF writer save to memory")) {
         return nullptr;
     }
 
