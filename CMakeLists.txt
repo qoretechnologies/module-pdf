@@ -130,9 +130,15 @@ target_link_libraries(${module_name} ${QORE_LIBRARY} ${QPDF_LIBRARIES} ${PODOFO_
 
 if (USE_BUNDLED_PODOFO)
     # Keep the bundled PoDoFo next to the module so the loader can find it.
+    # $ORIGIN is Linux-only; macOS uses @loader_path for the same purpose.
+    if (APPLE)
+        set(_rpath_origin "@loader_path")
+    else()
+        set(_rpath_origin "$ORIGIN")
+    endif()
     set_target_properties(${module_name} PROPERTIES
-        BUILD_RPATH "$ORIGIN"
-        INSTALL_RPATH "$ORIGIN"
+        BUILD_RPATH "${_rpath_origin}"
+        INSTALL_RPATH "${_rpath_origin}"
     )
     install(TARGETS podofo_shared
         LIBRARY DESTINATION ${QORE_MODULES_DIR}
