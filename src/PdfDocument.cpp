@@ -152,7 +152,8 @@ void QorePdfDocument::applyMetadata(const QoreHashNode* metadata, QPDFObjectHand
     auto set_string = [&](const char* field, const char* key) {
         QoreValue val = metadata->getKeyValue(field);
         if (val.getType() == NT_STRING) {
-            info.replaceKey(key, QPDFObjectHandle::newString(val.get<const QoreStringNode>()->c_str()));
+            QoreStringValueHelper str(val);
+            info.replaceKey(key, QPDFObjectHandle::newString(std::string(str->c_str(), str->size())));
         }
     };
 
@@ -293,7 +294,7 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
                 pdf_error(xsink, "Input list must contain strings");
                 return nullptr;
             }
-            const QoreStringNode* path = val.get<const QoreStringNode>();
+            QoreStringValueHelper path(val);
             if (smh && !smh->checkFilesystemAccess(path->c_str(), QSEC_READ, xsink)) {
                 return nullptr;
             }
@@ -348,7 +349,7 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
                 pdf_error(xsink, "Input list must contain strings");
                 return nullptr;
             }
-            const QoreStringNode* path = val.get<const QoreStringNode>();
+            QoreStringValueHelper path(val);
             if (smh && !smh->checkFilesystemAccess(path->c_str(), QSEC_READ, xsink)) {
                 return nullptr;
             }

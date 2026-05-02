@@ -94,25 +94,29 @@ void QorePdfWriter::setMetadata(const QoreHashNode* metadata, ExceptionSink* xsi
 
     val = metadata->getKeyValue("title");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         meta.SetTitle(str);
     }
 
     val = metadata->getKeyValue("author");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         meta.SetAuthor(str);
     }
 
     val = metadata->getKeyValue("subject");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         meta.SetSubject(str);
     }
 
     val = metadata->getKeyValue("keywords");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         std::vector<std::string> keywords;
         keywords.push_back(std::string(str.GetString()));
         meta.SetKeywords(std::move(keywords));
@@ -120,13 +124,15 @@ void QorePdfWriter::setMetadata(const QoreHashNode* metadata, ExceptionSink* xsi
 
     val = metadata->getKeyValue("creator");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         meta.SetCreator(str);
     }
 
     val = metadata->getKeyValue("producer");
     if (val.getType() == NT_STRING) {
-        PoDoFo::PdfString str(val.get<const QoreStringNode>()->c_str());
+        QoreStringValueHelper qstr(val);
+        PoDoFo::PdfString str(qstr->c_str());
         meta.SetProducer(str);
     }
 

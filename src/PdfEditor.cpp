@@ -177,7 +177,8 @@ PoDoFo::PdfColor QorePdfEditor::parseColor(const QoreHashNode* colorHash, Except
     // Check for hex color
     QoreValue val = colorHash->getKeyValue("hex");
     if (val.getType() == NT_STRING) {
-        std::string hex = val.get<const QoreStringNode>()->c_str();
+        QoreStringValueHelper str(val);
+        std::string hex(str->c_str(), str->size());
         double r, g, b;
         if (parseHexColor(hex, r, g, b)) {
             return PoDoFo::PdfColor(r, g, b);
@@ -211,7 +212,8 @@ PoDoFo::PdfColor QorePdfEditor::parseColor(const QoreHashNode* colorHash, Except
     // Check for named color
     val = colorHash->getKeyValue("name");
     if (val.getType() == NT_STRING) {
-        std::string name = val.get<const QoreStringNode>()->c_str();
+        QoreStringValueHelper str(val);
+        std::string name(str->c_str(), str->size());
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
         auto it = namedColors.find(name);
@@ -250,7 +252,8 @@ PoDoFo::PdfFont& QorePdfEditor::getFont(const QoreHashNode* fontSpec, ExceptionS
     // Check for custom font path
     QoreValue val = fontSpec->getKeyValue("font_path");
     if (val.getType() == NT_STRING) {
-        std::string fontPath = val.get<const QoreStringNode>()->c_str();
+        QoreStringValueHelper str(val);
+        std::string fontPath(str->c_str(), str->size());
         try {
             return doc->GetFonts().GetOrCreateFont(fontPath, params);
         } catch (const std::exception& e) {
@@ -262,7 +265,8 @@ PoDoFo::PdfFont& QorePdfEditor::getFont(const QoreHashNode* fontSpec, ExceptionS
     // Check for font family
     val = fontSpec->getKeyValue("family");
     if (val.getType() == NT_STRING) {
-        std::string family = val.get<const QoreStringNode>()->c_str();
+        QoreStringValueHelper str(val);
+        std::string family(str->c_str(), str->size());
         std::transform(family.begin(), family.end(), family.begin(), ::tolower);
 
         bool bold = false;
@@ -517,7 +521,8 @@ void QorePdfEditor::drawText(int pageIndex, const std::string& text,
             // Check for stroke settings
             QoreValue renderModeVal = style->getKeyValue("render_mode");
             if (renderModeVal.getType() == NT_STRING) {
-                std::string mode = renderModeVal.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(renderModeVal);
+                std::string mode(str->c_str(), str->size());
                 if (mode == "stroke") {
                     painter.TextState.SetRenderingMode(PoDoFo::PdfTextRenderingMode::Stroke);
                 } else if (mode == "fill_stroke") {
@@ -588,11 +593,13 @@ void QorePdfEditor::drawText(int pageIndex, const std::string& text,
             }
             QoreValue alignVal = style->getKeyValue("align");
             if (alignVal.getType() == NT_STRING) {
-                align = alignVal.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(alignVal);
+                align.assign(str->c_str(), str->size());
             }
             QoreValue valignVal = style->getKeyValue("valign");
             if (valignVal.getType() == NT_STRING) {
-                valign = valignVal.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(valignVal);
+                valign.assign(str->c_str(), str->size());
             }
         }
 
@@ -1110,7 +1117,8 @@ void QorePdfEditor::setFormFieldValue(const std::string& fieldName, QoreValue va
                         auto* textBox = dynamic_cast<PoDoFo::PdfTextBox*>(field);
                         if (textBox) {
                             if (value.getType() == NT_STRING) {
-                                textBox->SetText(PoDoFo::PdfString(value.get<const QoreStringNode>()->c_str()));
+                                QoreStringValueHelper str(value);
+                                textBox->SetText(PoDoFo::PdfString(str->c_str()));
                             } else {
                                 QoreStringValueHelper str(value);
                                 textBox->SetText(PoDoFo::PdfString(str->c_str()));
@@ -1176,7 +1184,8 @@ void QorePdfEditor::createFormField(const std::string& fieldName, const std::str
             if (options) {
                 QoreValue val = options->getKeyValue("default_value");
                 if (val.getType() == NT_STRING) {
-                    textBox.SetText(PoDoFo::PdfString(val.get<const QoreStringNode>()->c_str()));
+                    QoreStringValueHelper str(val);
+                    textBox.SetText(PoDoFo::PdfString(str->c_str()));
                 }
 
                 val = options->getKeyValue("max_length");
@@ -1234,7 +1243,8 @@ void QorePdfEditor::createFormField(const std::string& fieldName, const std::str
                     while (it.next()) {
                         QoreValue item = it.getValue();
                         if (item.getType() == NT_STRING) {
-                            comboBox.InsertItem(PoDoFo::PdfString(item.get<const QoreStringNode>()->c_str()));
+                            QoreStringValueHelper str(item);
+                            comboBox.InsertItem(PoDoFo::PdfString(str->c_str()));
                         }
                     }
                 }
@@ -1265,7 +1275,8 @@ void QorePdfEditor::createFormField(const std::string& fieldName, const std::str
                     while (it.next()) {
                         QoreValue item = it.getValue();
                         if (item.getType() == NT_STRING) {
-                            listBox.InsertItem(PoDoFo::PdfString(item.get<const QoreStringNode>()->c_str()));
+                            QoreStringValueHelper str(item);
+                            listBox.InsertItem(PoDoFo::PdfString(str->c_str()));
                         }
                     }
                 }
@@ -1291,7 +1302,8 @@ void QorePdfEditor::createFormField(const std::string& fieldName, const std::str
             if (options) {
                 QoreValue val = options->getKeyValue("caption");
                 if (val.getType() == NT_STRING) {
-                    pushButton.SetCaption(PoDoFo::PdfString(val.get<const QoreStringNode>()->c_str()));
+                    QoreStringValueHelper str(val);
+                    pushButton.SetCaption(PoDoFo::PdfString(str->c_str()));
                 }
 
                 val = options->getKeyValue("read_only");
@@ -1666,17 +1678,20 @@ void QorePdfEditor::signDocument(const std::string& fieldName, const BinaryNode*
         if (options) {
             QoreValue val = options->getKeyValue("reason");
             if (val.getType() == NT_STRING) {
-                reason = val.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(val);
+                reason.assign(str->c_str(), str->size());
             }
 
             val = options->getKeyValue("location");
             if (val.getType() == NT_STRING) {
-                location = val.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(val);
+                location.assign(str->c_str(), str->size());
             }
 
             val = options->getKeyValue("signer_name");
             if (val.getType() == NT_STRING) {
-                signerName = val.get<const QoreStringNode>()->c_str();
+                QoreStringValueHelper str(val);
+                signerName.assign(str->c_str(), str->size());
             }
         }
 
