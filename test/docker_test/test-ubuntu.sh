@@ -30,22 +30,28 @@ apt-get update
 apt-get install -y qpdf libqpdf-dev libfreetype-dev
 
 # locate PDFium prebuilt
-PDFIUM_INCLUDE_DIR=/usr/include
-PDFIUM_LIBRARY=
+PDFIUM_ROOT=${PDFIUM_ROOT:-/opt/pdfium}
+PDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR:-${PDFIUM_ROOT}/include}
+PDFIUM_LIBRARY=${PDFIUM_LIBRARY:-}
 libdirs=()
+if [ -n "${PDFIUM_ROOT}" ]; then
+    libdirs+=("${PDFIUM_ROOT}/lib")
+fi
 if command -v dpkg-architecture >/dev/null 2>&1; then
     libdirs+=("/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)")
 fi
 libdirs+=("/usr/lib/x86_64-linux-gnu" "/usr/lib/aarch64-linux-gnu")
-for libdir in "${libdirs[@]}"; do
-    if [ -f "${libdir}/libpdfium.so" ]; then
-        PDFIUM_LIBRARY="${libdir}/libpdfium.so"
-        break
-    elif [ -f "${libdir}/libpdfium.a" ]; then
-        PDFIUM_LIBRARY="${libdir}/libpdfium.a"
-        break
-    fi
-done
+if [ -z "${PDFIUM_LIBRARY}" ]; then
+    for libdir in "${libdirs[@]}"; do
+        if [ -f "${libdir}/libpdfium.so" ]; then
+            PDFIUM_LIBRARY="${libdir}/libpdfium.so"
+            break
+        elif [ -f "${libdir}/libpdfium.a" ]; then
+            PDFIUM_LIBRARY="${libdir}/libpdfium.a"
+            break
+        fi
+    done
+fi
 if [ -z "${PDFIUM_LIBRARY}" ]; then
     if [ -f /usr/lib64/libpdfium.so ]; then
         PDFIUM_LIBRARY=/usr/lib64/libpdfium.so
@@ -56,6 +62,10 @@ if [ -z "${PDFIUM_LIBRARY}" ]; then
     elif [ -f /usr/lib/libpdfium.a ]; then
         PDFIUM_LIBRARY=/usr/lib/libpdfium.a
     fi
+fi
+if [ ! -d "${PDFIUM_INCLUDE_DIR}" ]; then
+    echo "PDFium include directory not found: ${PDFIUM_INCLUDE_DIR}" >&2
+    exit 1
 fi
 if [ ! -f "${PDFIUM_LIBRARY}" ]; then
     echo "PDFium library not found in image" >&2
@@ -68,8 +78,8 @@ mkdir -p ${MODULE_SRC_DIR}/build
 cd ${MODULE_SRC_DIR}/build
 cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
     -DENABLE_PDFIUM=ON \
-    -DPDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR} \
-    -DPDFIUM_LIBRARY=${PDFIUM_LIBRARY}
+    -DPDFIUM_INCLUDE_DIR="${PDFIUM_INCLUDE_DIR}" \
+    -DPDFIUM_LIBRARY="${PDFIUM_LIBRARY}"
 make -j${MAKE_JOBS}
 make install
 

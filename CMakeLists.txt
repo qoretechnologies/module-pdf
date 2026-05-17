@@ -150,6 +150,26 @@ if (PDFIUM_FOUND)
     target_include_directories(${module_name} PRIVATE ${PDFIUM_INCLUDE_DIR})
     target_link_libraries(${module_name} ${PDFIUM_LIBRARY})
     target_compile_definitions(${module_name} PRIVATE HAVE_PDFIUM=1)
+
+    get_filename_component(PDFIUM_LIBRARY_DIR "${PDFIUM_LIBRARY}" DIRECTORY)
+    if (PDFIUM_LIBRARY_DIR)
+        get_target_property(_pdf_build_rpath ${module_name} BUILD_RPATH)
+        if (NOT _pdf_build_rpath OR _pdf_build_rpath MATCHES "-NOTFOUND$")
+            set(_pdf_build_rpath "")
+        endif()
+        get_target_property(_pdf_install_rpath ${module_name} INSTALL_RPATH)
+        if (NOT _pdf_install_rpath OR _pdf_install_rpath MATCHES "-NOTFOUND$")
+            set(_pdf_install_rpath "")
+        endif()
+        list(APPEND _pdf_build_rpath "${PDFIUM_LIBRARY_DIR}")
+        list(APPEND _pdf_install_rpath "${PDFIUM_LIBRARY_DIR}")
+        list(REMOVE_DUPLICATES _pdf_build_rpath)
+        list(REMOVE_DUPLICATES _pdf_install_rpath)
+        set_target_properties(${module_name} PROPERTIES
+            BUILD_RPATH "${_pdf_build_rpath}"
+            INSTALL_RPATH "${_pdf_install_rpath}"
+        )
+    endif()
 endif()
 
 string(REPLACE ";" " " QPDF_CFLAGS "${QPDF_CFLAGS}")

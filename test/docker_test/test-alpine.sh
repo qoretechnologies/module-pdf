@@ -29,12 +29,23 @@ export MAKE_JOBS=4
 apk add --no-cache qpdf qpdf-dev freetype-dev
 
 # locate PDFium prebuilt
-PDFIUM_INCLUDE_DIR=/usr/include
-PDFIUM_LIBRARY=
-if [ -f /usr/lib/libpdfium.so ]; then
-    PDFIUM_LIBRARY=/usr/lib/libpdfium.so
-elif [ -f /usr/lib/libpdfium.a ]; then
-    PDFIUM_LIBRARY=/usr/lib/libpdfium.a
+PDFIUM_ROOT=${PDFIUM_ROOT:-/opt/pdfium}
+PDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR:-${PDFIUM_ROOT}/include}
+PDFIUM_LIBRARY=${PDFIUM_LIBRARY:-}
+if [ -z "${PDFIUM_LIBRARY}" ]; then
+    if [ -f "${PDFIUM_ROOT}/lib/libpdfium.so" ]; then
+        PDFIUM_LIBRARY="${PDFIUM_ROOT}/lib/libpdfium.so"
+    elif [ -f "${PDFIUM_ROOT}/lib/libpdfium.a" ]; then
+        PDFIUM_LIBRARY="${PDFIUM_ROOT}/lib/libpdfium.a"
+    elif [ -f /usr/lib/libpdfium.so ]; then
+        PDFIUM_LIBRARY=/usr/lib/libpdfium.so
+    elif [ -f /usr/lib/libpdfium.a ]; then
+        PDFIUM_LIBRARY=/usr/lib/libpdfium.a
+    fi
+fi
+if [ ! -d "${PDFIUM_INCLUDE_DIR}" ]; then
+    echo "PDFium include directory not found: ${PDFIUM_INCLUDE_DIR}" >&2
+    exit 1
 fi
 if [ ! -f "${PDFIUM_LIBRARY}" ]; then
     echo "PDFium library not found in image" >&2
@@ -47,8 +58,8 @@ mkdir -p ${MODULE_SRC_DIR}/build
 cd ${MODULE_SRC_DIR}/build
 cmake .. -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
     -DENABLE_PDFIUM=ON \
-    -DPDFIUM_INCLUDE_DIR=${PDFIUM_INCLUDE_DIR} \
-    -DPDFIUM_LIBRARY=${PDFIUM_LIBRARY}
+    -DPDFIUM_INCLUDE_DIR="${PDFIUM_INCLUDE_DIR}" \
+    -DPDFIUM_LIBRARY="${PDFIUM_LIBRARY}"
 make -j${MAKE_JOBS}
 make install
 
