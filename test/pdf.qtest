@@ -55,6 +55,7 @@ public class PdfTest inherits QUnit::Test {
         addTestCase("Large page count tests", \largePageCountTest());
         addTestCase("Corrupt PDF tests", \corruptPdfTest());
         addTestCase("Warnings capture tests", \warningsTest());
+        addTestCase("Named argument tests", \namedArgumentTest());
 
         set_return_value(main());
     }
@@ -605,5 +606,111 @@ public class PdfTest inherits QUnit::Test {
             # Acceptable - severely damaged PDFs may throw
             assertEq("PDF-ERROR", ex.err, "PDF with damaged startxref throws PDF-ERROR");
         }
+    }
+
+    namedArgumentTest() {
+        string namedPdf = testDir + "/named.pdf";
+        string updatedPdf = testDir + "/named_updated.pdf";
+        string editedPdf = testDir + "/named_edited.pdf";
+        string mergedPdf = testDir + "/named_merged.pdf";
+        string splitDir = testDir + "/named_split";
+        mkdir(splitDir);
+
+        PdfPage page(index: 2);
+        assertEq(2, page.index(), "PdfPage constructor accepts named index");
+
+        PdfWriter writer();
+        writer.setFontOptions(options: <PdfFontOptions>{
+            "embed": True,
+            "subset": True,
+            "prefer_non_cid": False,
+        });
+        writer.addBlankPage(height: 200.0, width: 300.0);
+        writer.addTextPage(height: 400.0, text: "Named text", width: 300.0);
+        writer.setMetadata(metadata: <PdfMetadata>{"title": "Named Title"});
+        writer.save(path: namedPdf);
+        assertEq(True, is_file(namedPdf), "named writer save created a PDF");
+
+        binary pdfData = writer.saveToMemory();
+        assertTrue(pdfData.size() > 0, "named writer saveToMemory returns data");
+
+        PdfDocument doc(path: namedPdf);
+        assertEq(2, doc.pageCount(), "PdfDocument file constructor accepts named path");
+        assertEq("Named Title", doc.metadata().title, "metadata written with named args");
+
+        PdfDocument docFromData(data: pdfData);
+        assertEq(2, docFromData.pageCount(), "PdfDocument data constructor accepts named data");
+
+        PdfReader reader(path: namedPdf);
+        assertEq(2, reader.pageCount(), "PdfReader file constructor accepts named path");
+        PdfReader readerFromData(data: pdfData);
+        assertEq(2, readerFromData.pageCount(), "PdfReader data constructor accepts named data");
+
+        doc.setMetadata(metadata: <PdfMetadata>{"title": "Updated Named Title"});
+        list<int> pages = ();
+        pages += 0;
+        doc.rotatePages(degrees: 180, pages: pages);
+        doc.save(path: updatedPdf);
+        PdfDocument check(path: updatedPdf);
+        assertEq("Updated Named Title", check.metadata().title, "document named metadata persisted");
+
+        list<string> mergeInputs = (namedPdf, updatedPdf);
+        PdfDocument merged = PdfDocument::merge(inputs: mergeInputs);
+        merged.save(path: mergedPdf);
+        assertEq(4, merged.pageCount(), "merge accepts named inputs");
+        list<string> outputs = PdfDocument::split(prefix: "named_", output_dir: splitDir, input_path: mergedPdf);
+        assertEq(4, outputs.size(), "split accepts named input_path/output_dir/prefix");
+
+        PdfEditor editor(path: namedPdf);
+        hash<auto> dims = editor.getPageDimensions(page_index: 0);
+        assertEq(300.0, dims.width, "getPageDimensions accepts named page_index");
+        editor.setFontOptions(options: <PdfFontOptions>{
+            "embed": True,
+            "subset": True,
+            "prefer_non_cid": False,
+        });
+        hash<auto> style = {
+            "font": {
+                "family": "Helvetica",
+                "size": 11.0,
+            },
+            "color": {
+                "name": "blue",
+            },
+        };
+        editor.drawText(opacity: 0.8, rotation: 0.0, style: cast<hash<Qore::Pdf::PdfTextStyle>>(style),
+            y: 150.0, x: 36.0, text: "Named editor text", page_index: 0);
+        editor.createFormField(options: {"default_value": "initial"}, height: 20.0, width: 120.0,
+            y: 100.0, x: 36.0, page_index: 0, field_type: "text", name: "named_field");
+        editor.save(path: editedPdf);
+
+        PdfEditor edited(path: editedPdf);
+        edited.setFormFieldValue(value: "updated", name: "named_field");
+        assertEq("updated", edited.getFormFieldValue(name: "named_field"),
+            "form field access accepts named arguments");
+        binary editedData = edited.saveToMemory();
+        PdfEditor editedFromData(data: editedData);
+        assertEq(2, editedFromData.pageCount(), "PdfEditor data constructor accepts named data");
+
+        if (!PdfRenderer::isAvailable()) {
+            bool thrown = False;
+            try {
+                PdfRenderer::renderPage(dpi: 72, page_index: 0, path: namedPdf);
+            } catch (hash<ExceptionInfo> ex) {
+                thrown = True;
+                assertEq("PDF-ERROR", ex.err, "renderPage with named args reports PDF-ERROR when unavailable");
+            }
+            assertTrue(thrown, "renderPage with named args throws when PDFium is missing");
+            return;
+        }
+
+        hash<PdfRenderResult> rendered = PdfRenderer::renderPage(dpi: 72, page_index: 0, path: namedPdf);
+        assertTrue(rendered.data.size() > 0, "renderPage accepts named args");
+        hash<PdfRenderResult> renderedData = PdfRenderer::renderPageFromData(dpi: 72, page_index: 0, data: pdfData);
+        assertTrue(renderedData.data.size() > 0, "renderPageFromData accepts named args");
+        string text = PdfRenderer::extractText(page_index: 1, path: namedPdf);
+        assertTrue(text.find("Named text") >= 0, "extractText accepts named args");
+        string textFromData = PdfRenderer::extractTextFromData(page_index: 1, data: pdfData);
+        assertTrue(textFromData.find("Named text") >= 0, "extractTextFromData accepts named args");
     }
 }

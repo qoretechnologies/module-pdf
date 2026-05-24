@@ -61,7 +61,7 @@ qclass PdfDocument [arg=QorePdfDocument* doc; ns=Qore::Pdf];
 /** @param path the PDF file path
     @param password optional password
 */
-PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM] {
+PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return;
@@ -78,7 +78,7 @@ PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM] {
 /** @param data binary PDF data
     @param password optional password
 */
-PdfDocument::constructor(binary data, *string password) {
+PdfDocument::constructor(binary data, *string password) [flags=NAMED_ARGS] {
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return;
@@ -117,7 +117,7 @@ hash<PdfMetadata> PdfDocument::metadata() {
 
     @throw PDF-ERROR if the document is not initialized or metadata cannot be updated
 */
-nothing PdfDocument::setMetadata(hash<PdfMetadata> metadata) {
+nothing PdfDocument::setMetadata(hash<PdfMetadata> metadata) [flags=NAMED_ARGS] {
     doc->setMetadata(metadata, xsink);
 }
 
@@ -137,7 +137,7 @@ binary PdfDocument::toData() {
 
     @throw PDF-ERROR if the document is not initialized or cannot be saved
 */
-nothing PdfDocument::save(string path) [dom=FILESYSTEM] {
+nothing PdfDocument::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return QoreValue();
@@ -166,7 +166,7 @@ nothing PdfDocument::save(string path) [dom=FILESYSTEM] {
 
     @throw PDF-ERROR if any page index is invalid or rotation is not valid
 */
-nothing PdfDocument::rotatePages(list<int> pages, int degrees) {
+nothing PdfDocument::rotatePages(list<int> pages, int degrees) [flags=NAMED_ARGS] {
     if (degrees % 90 != 0) {
         xsink->raiseException("PDF-ERROR", "Rotation degrees must be a multiple of 90");
         return QoreValue();
@@ -182,7 +182,7 @@ nothing PdfDocument::rotatePages(list<int> pages, int degrees) {
 
     @throw PDF-ERROR if any input cannot be read or the input list is invalid
 */
-static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [dom=FILESYSTEM] {
+static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!inputs || inputs->size() == 0) {
         xsink->raiseException("PDF-ERROR", "Input list cannot be empty");
         return QoreValue();
@@ -196,7 +196,7 @@ static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [do
 }
 
 //! Splits a PDF into single-page PDFs
-/** @param input input PDF path
+/** @param input_path input PDF path
     @param output_dir output directory
     @param prefix output filename prefix
 
@@ -204,9 +204,9 @@ static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [do
 
     @throw PDF-ERROR if the input cannot be read or output cannot be written
 */
-static list<string> PdfDocument::split(string input, string output_dir, *string prefix = "page_")
-        [dom=FILESYSTEM] {
-    if (!input || input->empty()) {
+static list<string> PdfDocument::split(string input_path, string output_dir, *string prefix = "page_")
+        [dom=FILESYSTEM;flags=NAMED_ARGS] {
+    if (!input_path || input_path->empty()) {
         xsink->raiseException("PDF-ERROR", "Input path is required");
         return QoreValue();
     }
@@ -214,6 +214,6 @@ static list<string> PdfDocument::split(string input, string output_dir, *string 
         xsink->raiseException("PDF-ERROR", "Output directory is required");
         return QoreValue();
     }
-    return QorePdfDocument::split(input->c_str(), output_dir->c_str(),
+    return QorePdfDocument::split(input_path->c_str(), output_dir->c_str(),
         prefix ? prefix->c_str() : "page_", xsink);
 }

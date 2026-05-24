@@ -71,7 +71,7 @@ int PdfWriter::pageCount() {
 
     @throw PDF-ERROR if page dimensions are invalid or page creation fails
 */
-nothing PdfWriter::addBlankPage(float width = 612.0, float height = 792.0) {
+nothing PdfWriter::addBlankPage(float width = 612.0, float height = 792.0) [flags=NAMED_ARGS] {
     if (width <= 0.0 || height <= 0.0) {
         xsink->raiseException("PDF-ERROR", "Page width and height must be positive");
         return QoreValue();
@@ -86,7 +86,7 @@ nothing PdfWriter::addBlankPage(float width = 612.0, float height = 792.0) {
 
     @throw PDF-ERROR if page creation or text rendering fails
 */
-nothing PdfWriter::addTextPage(string text, float width = 612.0, float height = 792.0) {
+nothing PdfWriter::addTextPage(string text, float width = 612.0, float height = 792.0) [flags=NAMED_ARGS] {
     if (width <= 0.0 || height <= 0.0) {
         xsink->raiseException("PDF-ERROR", "Page width and height must be positive");
         return QoreValue();
@@ -99,17 +99,17 @@ nothing PdfWriter::addTextPage(string text, float width = 612.0, float height = 
 
     @throw PDF-ERROR if metadata cannot be applied
 */
-nothing PdfWriter::setMetadata(hash<PdfMetadata> metadata) {
+nothing PdfWriter::setMetadata(hash<PdfMetadata> metadata) [flags=NAMED_ARGS] {
     writer->setMetadata(metadata, xsink);
 }
 
 //! Sets font embedding and subsetting options
-/** @param opts font options
+/** @param options font options
 
     @throw PDF-ERROR if options cannot be applied
 */
-nothing PdfWriter::setFontOptions(hash<PdfFontOptions> opts) {
-    writer->setFontOptions(opts, xsink);
+nothing PdfWriter::setFontOptions(hash<PdfFontOptions> options) [flags=NAMED_ARGS] {
+    writer->setFontOptions(options, xsink);
 }
 
 //! Saves the document to a file
@@ -117,7 +117,7 @@ nothing PdfWriter::setFontOptions(hash<PdfFontOptions> opts) {
 
     @throw PDF-ERROR if the document cannot be saved
 */
-nothing PdfWriter::save(string path) [dom=FILESYSTEM] {
+nothing PdfWriter::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return QoreValue();

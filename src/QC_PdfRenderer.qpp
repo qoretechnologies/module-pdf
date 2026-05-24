@@ -72,7 +72,7 @@ static bool PdfRenderer::isAvailable() {
     @throw PDF-ERROR if rendering fails or PDFium is unavailable
 */
 static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index,
-        *int dpi = 150) [dom=FILESYSTEM] {
+        *int dpi = 150) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     int dpi_value = dpi;
     if (dpi_value <= 0) {
         xsink->raiseException("PDF-ERROR", "DPI must be positive");
@@ -95,7 +95,7 @@ static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index
     @throw PDF-ERROR if rendering fails or PDFium is unavailable
 */
 static hash<PdfRenderResult> PdfRenderer::renderPageFromData(binary data, int page_index,
-        *int dpi = 150) {
+        *int dpi = 150) [flags=NAMED_ARGS] {
     int dpi_value = dpi;
     if (dpi_value <= 0) {
         xsink->raiseException("PDF-ERROR", "DPI must be positive");
@@ -120,7 +120,7 @@ static hash<PdfRenderResult> PdfRenderer::renderPageFromData(binary data, int pa
 
     @throw PDF-ERROR if extraction fails or PDFium is unavailable
 */
-static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM] {
+static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (page_index < 0) {
         xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
         return QoreValue();
@@ -136,7 +136,7 @@ static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYS
 
     @throw PDF-ERROR if extraction fails or PDFium is unavailable
 */
-static string PdfRenderer::extractTextFromData(binary data, int page_index) {
+static string PdfRenderer::extractTextFromData(binary data, int page_index) [flags=NAMED_ARGS] {
     if (page_index < 0) {
         xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
         return QoreValue();
