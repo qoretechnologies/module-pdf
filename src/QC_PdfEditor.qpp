@@ -185,7 +185,7 @@ qclass PdfEditor [arg=QorePdfEditor* editor; ns=Qore::Pdf];
 
     @throw PDF-ERROR if the file cannot be loaded
 */
-PdfEditor::constructor(string path, *string password) [dom=FILESYSTEM] {
+PdfEditor::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return;
@@ -205,7 +205,7 @@ PdfEditor::constructor(string path, *string password) [dom=FILESYSTEM] {
 
     @throw PDF-ERROR if the data cannot be parsed
 */
-PdfEditor::constructor(binary data, *string password) {
+PdfEditor::constructor(binary data, *string password) [flags=NAMED_ARGS] {
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return;
@@ -234,7 +234,7 @@ int PdfEditor::pageCount() {
 
     @throw PDF-ERROR if page index is out of range
 */
-hash<auto> PdfEditor::getPageDimensions(int page_index) {
+hash<auto> PdfEditor::getPageDimensions(int page_index) [flags=NAMED_ARGS] {
     return editor->getPageDimensions(page_index, xsink);
 }
 
@@ -253,7 +253,7 @@ hash<auto> PdfEditor::getPageDimensions(int page_index) {
 */
 nothing PdfEditor::drawImage(int page_index, string image_path, float x, float y,
         float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0)
-        [dom=FILESYSTEM] {
+        [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!image_path || image_path->empty()) {
         xsink->raiseException("PDF-ERROR", "image_path is required");
         return QoreValue();
@@ -275,7 +275,7 @@ nothing PdfEditor::drawImage(int page_index, string image_path, float x, float y
     @throw PDF-ERROR if the image cannot be drawn
 */
 nothing PdfEditor::drawImageFromData(int page_index, binary image_data, float x, float y,
-        float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0) {
+        float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0) [flags=NAMED_ARGS] {
     if (!image_data || image_data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "image_data is required");
         return QoreValue();
@@ -296,7 +296,7 @@ nothing PdfEditor::drawImageFromData(int page_index, binary image_data, float x,
     @throw PDF-ERROR if the text cannot be drawn
 */
 nothing PdfEditor::drawText(int page_index, string text, float x, float y,
-        *hash<PdfTextStyle> style, float rotation = 0.0, float opacity = 1.0) {
+        *hash<PdfTextStyle> style, float rotation = 0.0, float opacity = 1.0) [flags=NAMED_ARGS] {
     if (!text) {
         xsink->raiseException("PDF-ERROR", "text is required");
         return QoreValue();
@@ -306,10 +306,10 @@ nothing PdfEditor::drawText(int page_index, string text, float x, float y,
 
 //! Sets font options for text drawing
 /**
-    @param opts hash with font options (embed, subset, prefer_non_cid)
+    @param options hash with font options (embed, subset, prefer_non_cid)
 */
-nothing PdfEditor::setFontOptions(hash<PdfFontOptions> opts) {
-    editor->setFontOptions(opts, xsink);
+nothing PdfEditor::setFontOptions(hash<PdfFontOptions> options) [flags=NAMED_ARGS] {
+    editor->setFontOptions(options, xsink);
 }
 
 //! Saves the document to a file
@@ -318,7 +318,7 @@ nothing PdfEditor::setFontOptions(hash<PdfFontOptions> opts) {
 
     @throw PDF-ERROR if the document cannot be saved
 */
-nothing PdfEditor::save(string path) [dom=FILESYSTEM] {
+nothing PdfEditor::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return QoreValue();
@@ -344,7 +344,7 @@ binary PdfEditor::saveToMemory() {
 
     @throw PDF-ERROR if the image cannot be read
 */
-static hash<auto> PdfEditor::getImageDimensions(string path) [dom=FILESYSTEM] {
+static hash<auto> PdfEditor::getImageDimensions(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return QoreValue();
@@ -360,7 +360,7 @@ static hash<auto> PdfEditor::getImageDimensions(string path) [dom=FILESYSTEM] {
 
     @throw PDF-ERROR if the image cannot be read
 */
-static hash<auto> PdfEditor::getImageDimensionsFromData(binary data) {
+static hash<auto> PdfEditor::getImageDimensionsFromData(binary data) [flags=NAMED_ARGS] {
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return QoreValue();
@@ -400,7 +400,7 @@ list<hash<auto>> PdfEditor::getFormFields() {
 
     @throw PDF-ERROR if field is not found or document is not loaded
 */
-auto PdfEditor::getFormFieldValue(string name) {
+auto PdfEditor::getFormFieldValue(string name) [flags=NAMED_ARGS] {
     if (!name || name->empty()) {
         xsink->raiseException("PDF-ERROR", "field name is required");
         return QoreValue();
@@ -415,7 +415,7 @@ auto PdfEditor::getFormFieldValue(string name) {
 
     @throw PDF-ERROR if field is not found or document is not loaded
 */
-nothing PdfEditor::setFormFieldValue(string name, auto value) {
+nothing PdfEditor::setFormFieldValue(string name, auto value) [flags=NAMED_ARGS] {
     if (!name || name->empty()) {
         xsink->raiseException("PDF-ERROR", "field name is required");
         return QoreValue();
@@ -426,7 +426,7 @@ nothing PdfEditor::setFormFieldValue(string name, auto value) {
 //! Creates a new form field
 /**
     @param name field name
-    @param type field type: "text", "checkbox", "combo", "list", "button", "signature"
+    @param field_type field type: "text", "checkbox", "combo", "list", "button", "signature"
     @param page_index zero-based page index
     @param x x coordinate in points
     @param y y coordinate in points
@@ -446,17 +446,17 @@ nothing PdfEditor::setFormFieldValue(string name, auto value) {
 
     @throw PDF-ERROR if parameters are invalid or document is not loaded
 */
-nothing PdfEditor::createFormField(string name, string type, int page_index,
-        float x, float y, float width, float height, *hash<auto> options) {
+nothing PdfEditor::createFormField(string name, string field_type, int page_index,
+        float x, float y, float width, float height, *hash<auto> options) [flags=NAMED_ARGS] {
     if (!name || name->empty()) {
         xsink->raiseException("PDF-ERROR", "field name is required");
         return QoreValue();
     }
-    if (!type || type->empty()) {
+    if (!field_type || field_type->empty()) {
         xsink->raiseException("PDF-ERROR", "field type is required");
         return QoreValue();
     }
-    editor->createFormField(name->c_str(), type->c_str(), page_index, x, y, width, height,
+    editor->createFormField(name->c_str(), field_type->c_str(), page_index, x, y, width, height,
                             options, xsink);
 }
 
@@ -490,7 +490,7 @@ nothing PdfEditor::flattenFormFields() {
     @throw PDF-ERROR if owner password is empty or document is not loaded
 */
 nothing PdfEditor::setEncryption(string owner_password, *string user_password,
-        *hash<auto> permissions, *string algorithm) {
+        *hash<auto> permissions, *string algorithm) [flags=NAMED_ARGS] {
     if (!owner_password || owner_password->empty()) {
         xsink->raiseException("PDF-ERROR", "owner_password is required");
         return QoreValue();
@@ -531,7 +531,7 @@ bool PdfEditor::isEncrypted() {
 
     @throw PDF-ERROR if file cannot be read
 */
-static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [dom=FILESYSTEM] {
+static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return QoreValue();
@@ -557,7 +557,7 @@ static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [d
     @throw PDF-ERROR if parameters are invalid or document is not loaded
 */
 nothing PdfEditor::createSignatureField(string name, int page_index,
-        float x, float y, float width, float height, *hash<auto> options) {
+        float x, float y, float width, float height, *hash<auto> options) [flags=NAMED_ARGS] {
     if (!name || name->empty()) {
         xsink->raiseException("PDF-ERROR", "field name is required");
         return QoreValue();

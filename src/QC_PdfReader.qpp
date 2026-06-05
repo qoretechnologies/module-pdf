@@ -39,7 +39,7 @@ qclass PdfReader [arg=QorePdfReader* reader; ns=Qore::Pdf];
 
     @throw PDF-ERROR if the document cannot be opened
 */
-PdfReader::constructor(string path, *string password) [dom=FILESYSTEM] {
+PdfReader::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
         xsink->raiseException("PDF-ERROR", "path is required");
         return;
@@ -58,7 +58,7 @@ PdfReader::constructor(string path, *string password) [dom=FILESYSTEM] {
 
     @throw PDF-ERROR if the document cannot be opened
 */
-PdfReader::constructor(binary data, *string password) {
+PdfReader::constructor(binary data, *string password) [flags=NAMED_ARGS] {
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return;
