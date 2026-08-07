@@ -44,6 +44,7 @@ module PdfDataProvider {
         # Register the data provider application
         DataProviderActionCatalog::registerApp(<DataProviderAppInfo>{
             "name": PdfDataProvider::AppName,
+            "presentation_source_locale": "en",
             "display_name": "PDF Document",
             "short_desc": "PDF manipulation and rendering",
             "desc": "Create, edit, and render PDF documents with metadata support",
