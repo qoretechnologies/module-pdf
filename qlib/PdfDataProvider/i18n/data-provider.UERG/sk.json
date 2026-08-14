@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "locales": {
+    "sk": {
+      "messages": {
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.desc": {
+          "source": "Create a digital signature field placeholder for later signing",
+          "message": "Vytvoriť pole digitálneho podpisu pre neskoršie podpísanie"
+        },
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.display_name": {
+          "source": "Create Signature Field",
+          "message": "Vytvoriť pole pre podpis"
+        },
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.short_desc": {
+          "source": "Create a digital signature field",
+          "message": "Vytvoriť pole digitálneho podpisu"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.desc": {
+          "source": "Create a PDF document from blank or text pages",
+          "message": "Vytvoriť PDF dokument z prázdnych alebo textových strán"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.display_name": {
+          "source": "Create Document",
+          "message": "Vytvoriť dokument"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.short_desc": {
+          "source": "Create a new PDF document",
+          "message": "Vytvoriť nový PDF dokument"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.desc": {
+          "source": "Create text, checkbox, combo, list, radio, or button form fields",
+          "message": "Vytvoriť formulárové polia typu text, zaškrtávacie políčko, combo, zoznam, prepínač alebo tlačidlo"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.display_name": {
+          "source": "Create Form Field",
+          "message": "Vytvoriť formulárové pole"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.short_desc": {
+          "source": "Create new form fields",
+          "message": "Vytvoriť nové formulárové polia"
+        },
+        "app.UERG.action.YWRkLWltYWdl.desc": {
+          "source": "Add PNG, JPEG, or TIFF images to PDF pages with positioning, scaling, and rotation",
+          "message": "Pridať obrázky PNG, JPEG alebo TIFF na PDF stránky s možnosťami umiestnenia, škálovania a otočenia"
+        },
+        "app.UERG.action.YWRkLWltYWdl.display_name": {
+          "source": "Add Image",
+          "message": "Pridať obrázok"
+        },
+        "app.UERG.action.YWRkLWltYWdl.short_desc": {
+          "source": "Add images to PDF pages",
+          "message": "Pridať obrázky na PDF stránky"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.desc": {
+          "source": "Add signature placeholders to PDF pages with optional image, label, and line",
+          "message": "Pridať polia pre podpis na PDF stránky s voliteľným obrázkom, popiskom a čiarou"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.display_name": {
+          "source": "Add Signature Field",
+          "message": "Pridať pole pre podpis"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.short_desc": {
+          "source": "Add signature placeholders",
+          "message": "Pridať polia pre podpis"
+        },
+        "app.UERG.action.YWRkLXRleHQ.desc": {
+          "source": "Add text to PDF pages with font, color, alignment, and rotation options",
+          "message": "Pridať text na PDF stránky s možnosťami písma, farby, zarovnania a otočenia"
+        },
+        "app.UERG.action.YWRkLXRleHQ.display_name": {
+          "source": "Add Text",
+          "message": "Pridať text"
+        },
+        "app.UERG.action.YWRkLXRleHQ.short_desc": {
+          "source": "Add styled text to PDF pages",
+          "message": "Pridať štýlovaný text na stránky PDF"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.desc": {
+          "source": "Add text or image watermarks to PDF pages with opacity, rotation, and tiling options",
+          "message": "Pridať textové alebo obrázkové vodotlače na stránky PDF s možnosťami nepriehľadnosti, otočenia a dlaždicového usporiadania"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.display_name": {
+          "source": "Add Watermark",
+          "message": "Pridať vodotlač"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.short_desc": {
+          "source": "Add watermarks to PDF pages",
+          "message": "Pridať vodotlače na stránky PDF"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.desc": {
+          "source": "Read document metadata and page count without modifying the file",
+          "message": "Prečítať metadáta dokumentu a počet stránok bez úpravy súboru"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.display_name": {
+          "source": "Get Document Info",
+          "message": "Získať informácie o dokumente"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.short_desc": {
+          "source": "Get PDF metadata and page count",
+          "message": "Získať metadáta a počet stránok PDF"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.desc": {
+          "source": "Get encryption status, algorithm, and permissions from a PDF document",
+          "message": "Získať stav šifrovania, algoritmus a oprávnenia z dokumentu PDF"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.display_name": {
+          "source": "Get Encryption Info",
+          "message": "Získať informácie o šifrovaní"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.short_desc": {
+          "source": "Get PDF encryption information",
+          "message": "Získať informácie o šifrovaní PDF"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.desc": {
+          "source": "Get values from all or selected form fields",
+          "message": "Získať hodnoty zo všetkých alebo vybraných polí formulára"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.display_name": {
+          "source": "Get Form Data",
+          "message": "Získať údaje formulára"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.short_desc": {
+          "source": "Get form field values",
+          "message": "Získať hodnoty polí formulára"
+        },
+        "app.UERG.action.ZGVjcnlwdA.desc": {
+          "source": "Remove encryption from a PDF document using the owner password",
+          "message": "Odstrániť šifrovanie z dokumentu PDF pomocou hesla vlastníka"
+        },
+        "app.UERG.action.ZGVjcnlwdA.display_name": {
+          "source": "Decrypt PDF",
+          "message": "Dešifrovať PDF"
+        },
+        "app.UERG.action.ZGVjcnlwdA.short_desc": {
+          "source": "Remove encryption from a PDF",
+          "message": "Odstrániť šifrovanie z PDF"
+        },
+        "app.UERG.action.ZW5jcnlwdA.desc": {
+          "source": "Encrypt a PDF document with owner and user passwords and permission restrictions",
+          "message": "Zašifrovať dokument PDF pomocou hesiel vlastníka a používateľa a obmedzení oprávnení"
+        },
+        "app.UERG.action.ZW5jcnlwdA.display_name": {
+          "source": "Encrypt PDF",
+          "message": "Zašifrovať PDF"
+        },
+        "app.UERG.action.ZW5jcnlwdA.short_desc": {
+          "source": "Encrypt a PDF with password",
+          "message": "Zašifrovať PDF heslom"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.desc": {
+          "source": "Fill form fields with values and optionally flatten to static content",
+          "message": "Vyplniť polia formulára hodnotami a voliteľne konvertovať na statický obsah"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.display_name": {
+          "source": "Fill Form",
+          "message": "Vyplniť formulár"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.short_desc": {
+          "source": "Fill form field values",
+          "message": "Vyplniť hodnoty polí formulára"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.desc": {
+          "source": "List all form fields with their names, types, values, and properties",
+          "message": "Zoznam všetkých polí formulára s ich názvami, typmi, hodnotami a vlastnosťami"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.display_name": {
+          "source": "List Form Fields",
+          "message": "Zoznam polí formulára"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.short_desc": {
+          "source": "List all form fields in a PDF",
+          "message": "Zoznam všetkých polí formulára v PDF"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.desc": {
+          "source": "List all digital signatures in a PDF document",
+          "message": "Zoznam všetkých digitálnych podpisov v dokumente PDF"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.display_name": {
+          "source": "List Signatures",
+          "message": "Zoznam podpisov"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.short_desc": {
+          "source": "List digital signatures",
+          "message": "Zoznam digitálnych podpisov"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.desc": {
+          "source": "Merge multiple PDF files into a single document",
+          "message": "Slúčiť viacero súborov PDF do jedného dokumentu"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.display_name": {
+          "source": "Merge Documents",
+          "message": "Slúčiť dokumenty"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.short_desc": {
+          "source": "Merge multiple PDFs",
+          "message": "Slúčiť viacero PDF"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.desc": {
+          "source": "Update document metadata and write a new PDF",
+          "message": "Aktualizovať metadáta dokumentu a zapísať nové PDF"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.display_name": {
+          "source": "Set Document Metadata",
+          "message": "Nastaviť metadáta dokumentu"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.short_desc": {
+          "source": "Update PDF metadata",
+          "message": "Aktualizovať metadáta PDF"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.desc": {
+          "source": "Split a PDF into single-page files",
+          "message": "Rozdeliť PDF na jednostránkové súbory"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.display_name": {
+          "source": "Split Document",
+          "message": "Rozdeliť dokument"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.short_desc": {
+          "source": "Split a PDF into pages",
+          "message": "Rozdeliť PDF na stránky"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.desc": {
+          "source": "Rotate selected pages by multiples of 90 degrees",
+          "message": "Otočiť vybrané stránky o násobky 90 stupňov"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.display_name": {
+          "source": "Rotate Pages",
+          "message": "Otočiť stránky"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.short_desc": {
+          "source": "Rotate specific pages",
+          "message": "Otočiť konkrétne stránky"
+        },
+        "app.UERG.desc": {
+          "source": "Create, edit, and render PDF documents with metadata support",
+          "message": "Vytvárať, upravovať a vykresľovať dokumenty PDF s podporou metadát"
+        },
+        "app.UERG.display_name": {
+          "source": "PDF Document",
+          "message": "PDF dokument"
+        },
+        "app.UERG.short_desc": {
+          "source": "PDF manipulation and rendering",
+          "message": "Manipulácia s PDF a jeho vykresľovanie"
+        }
+      }
+    }
+  }
+}

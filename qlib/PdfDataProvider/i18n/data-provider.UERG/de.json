@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "locales": {
+    "de": {
+      "messages": {
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.desc": {
+          "source": "Create a digital signature field placeholder for later signing",
+          "message": "Erstellen Sie einen Platzhalter für ein digitales Signaturfeld zum späteren Signieren"
+        },
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.display_name": {
+          "source": "Create Signature Field",
+          "message": "Signaturfeld erstellen"
+        },
+        "app.UERG.action.Y3JlYXRlLWRpZ2l0YWwtc2lnbmF0dXJlLWZpZWxk.short_desc": {
+          "source": "Create a digital signature field",
+          "message": "Ein digitales Signaturfeld erstellen"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.desc": {
+          "source": "Create a PDF document from blank or text pages",
+          "message": "Erstellen Sie ein PDF-Dokument aus leeren Seiten oder Textseiten"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.display_name": {
+          "source": "Create Document",
+          "message": "Dokument erstellen"
+        },
+        "app.UERG.action.Y3JlYXRlLWRvY3VtZW50.short_desc": {
+          "source": "Create a new PDF document",
+          "message": "Ein neues PDF-Dokument erstellen"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.desc": {
+          "source": "Create text, checkbox, combo, list, radio, or button form fields",
+          "message": "Erstellen Sie Text-, Kontrollkästchen-, Combo-, Listen-, Radio- oder Schaltflächen-Formularfelder"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.display_name": {
+          "source": "Create Form Field",
+          "message": "Formularfeld erstellen"
+        },
+        "app.UERG.action.Y3JlYXRlLWZvcm0tZmllbGQ.short_desc": {
+          "source": "Create new form fields",
+          "message": "Neue Formularfelder erstellen"
+        },
+        "app.UERG.action.YWRkLWltYWdl.desc": {
+          "source": "Add PNG, JPEG, or TIFF images to PDF pages with positioning, scaling, and rotation",
+          "message": "Fügen Sie PNG-, JPEG- oder TIFF-Bilder zu PDF-Seiten mit Positionierung, Skalierung und Drehung hinzu"
+        },
+        "app.UERG.action.YWRkLWltYWdl.display_name": {
+          "source": "Add Image",
+          "message": "Bild hinzufügen"
+        },
+        "app.UERG.action.YWRkLWltYWdl.short_desc": {
+          "source": "Add images to PDF pages",
+          "message": "Bilder zu PDF-Seiten hinzufügen"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.desc": {
+          "source": "Add signature placeholders to PDF pages with optional image, label, and line",
+          "message": "Fügen Sie Signatur-Platzhalter zu PDF-Seiten mit optionalem Bild, Beschriftung und Linie hinzu"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.display_name": {
+          "source": "Add Signature Field",
+          "message": "Signaturfeld hinzufügen"
+        },
+        "app.UERG.action.YWRkLXNpZ25hdHVyZS1maWVsZA.short_desc": {
+          "source": "Add signature placeholders",
+          "message": "Signatur-Platzhalter hinzufügen"
+        },
+        "app.UERG.action.YWRkLXRleHQ.desc": {
+          "source": "Add text to PDF pages with font, color, alignment, and rotation options",
+          "message": "Fügen Sie Text zu PDF-Seiten mit Schriftart-, Farb-, Ausrichtungs- und Drehungsoptionen hinzu"
+        },
+        "app.UERG.action.YWRkLXRleHQ.display_name": {
+          "source": "Add Text",
+          "message": "Text hinzufügen"
+        },
+        "app.UERG.action.YWRkLXRleHQ.short_desc": {
+          "source": "Add styled text to PDF pages",
+          "message": "Formatierten Text zu PDF-Seiten hinzufügen"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.desc": {
+          "source": "Add text or image watermarks to PDF pages with opacity, rotation, and tiling options",
+          "message": "Text- oder Bildwasserzeichen zu PDF-Seiten mit Optionen für Deckkraft, Drehung und Kachelung hinzufügen"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.display_name": {
+          "source": "Add Watermark",
+          "message": "Wasserzeichen hinzufügen"
+        },
+        "app.UERG.action.YWRkLXdhdGVybWFyaw.short_desc": {
+          "source": "Add watermarks to PDF pages",
+          "message": "Wasserzeichen zu PDF-Seiten hinzufügen"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.desc": {
+          "source": "Read document metadata and page count without modifying the file",
+          "message": "Dokumentmetadaten und Seitenanzahl lesen, ohne die Datei zu ändern"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.display_name": {
+          "source": "Get Document Info",
+          "message": "Dokumentinformationen abrufen"
+        },
+        "app.UERG.action.Z2V0LWRvY3VtZW50LWluZm8.short_desc": {
+          "source": "Get PDF metadata and page count",
+          "message": "PDF-Metadaten und Seitenanzahl abrufen"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.desc": {
+          "source": "Get encryption status, algorithm, and permissions from a PDF document",
+          "message": "Verschlüsselungsstatus, -algorithmus und Berechtigungen aus einem PDF-Dokument abrufen"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.display_name": {
+          "source": "Get Encryption Info",
+          "message": "Verschlüsselungsinformationen abrufen"
+        },
+        "app.UERG.action.Z2V0LWVuY3J5cHRpb24taW5mbw.short_desc": {
+          "source": "Get PDF encryption information",
+          "message": "PDF-Verschlüsselungsinformationen abrufen"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.desc": {
+          "source": "Get values from all or selected form fields",
+          "message": "Werte aus allen oder ausgewählten Formularfeldern abrufen"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.display_name": {
+          "source": "Get Form Data",
+          "message": "Formulardaten abrufen"
+        },
+        "app.UERG.action.Z2V0LWZvcm0tZGF0YQ.short_desc": {
+          "source": "Get form field values",
+          "message": "Formularfeldwerte abrufen"
+        },
+        "app.UERG.action.ZGVjcnlwdA.desc": {
+          "source": "Remove encryption from a PDF document using the owner password",
+          "message": "Verschlüsselung aus einem PDF-Dokument mithilfe des Eigentümerpassworts entfernen"
+        },
+        "app.UERG.action.ZGVjcnlwdA.display_name": {
+          "source": "Decrypt PDF",
+          "message": "PDF entschlüsseln"
+        },
+        "app.UERG.action.ZGVjcnlwdA.short_desc": {
+          "source": "Remove encryption from a PDF",
+          "message": "Verschlüsselung aus einer PDF-Datei entfernen"
+        },
+        "app.UERG.action.ZW5jcnlwdA.desc": {
+          "source": "Encrypt a PDF document with owner and user passwords and permission restrictions",
+          "message": "PDF-Dokument mit Eigentümer- und Benutzerpasswörtern sowie Berechtigungseinschränkungen verschlüsseln"
+        },
+        "app.UERG.action.ZW5jcnlwdA.display_name": {
+          "source": "Encrypt PDF",
+          "message": "PDF verschlüsseln"
+        },
+        "app.UERG.action.ZW5jcnlwdA.short_desc": {
+          "source": "Encrypt a PDF with password",
+          "message": "PDF mit Passwort verschlüsseln"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.desc": {
+          "source": "Fill form fields with values and optionally flatten to static content",
+          "message": "Formularfelder mit Werten ausfüllen und optional auf statischen Inhalt reduzieren"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.display_name": {
+          "source": "Fill Form",
+          "message": "Formular ausfüllen"
+        },
+        "app.UERG.action.ZmlsbC1mb3Jt.short_desc": {
+          "source": "Fill form field values",
+          "message": "Formularfeldwerte ausfüllen"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.desc": {
+          "source": "List all form fields with their names, types, values, and properties",
+          "message": "Alle Formularfelder mit ihren Namen, Typen, Werten und Eigenschaften auflisten"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.display_name": {
+          "source": "List Form Fields",
+          "message": "Formularfelder auflisten"
+        },
+        "app.UERG.action.bGlzdC1mb3JtLWZpZWxkcw.short_desc": {
+          "source": "List all form fields in a PDF",
+          "message": "Alle Formularfelder in einer PDF-Datei auflisten"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.desc": {
+          "source": "List all digital signatures in a PDF document",
+          "message": "Alle digitalen Signaturen in einem PDF-Dokument auflisten"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.display_name": {
+          "source": "List Signatures",
+          "message": "Signaturen auflisten"
+        },
+        "app.UERG.action.bGlzdC1zaWduYXR1cmVz.short_desc": {
+          "source": "List digital signatures",
+          "message": "Digitale Signaturen auflisten"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.desc": {
+          "source": "Merge multiple PDF files into a single document",
+          "message": "Mehrere PDF-Dateien zu einem einzelnen Dokument zusammenführen"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.display_name": {
+          "source": "Merge Documents",
+          "message": "Dokumente zusammenführen"
+        },
+        "app.UERG.action.bWVyZ2UtZG9jdW1lbnRz.short_desc": {
+          "source": "Merge multiple PDFs",
+          "message": "Mehrere PDF-Dateien zusammenführen"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.desc": {
+          "source": "Update document metadata and write a new PDF",
+          "message": "Dokumentmetadaten aktualisieren und eine neue PDF-Datei schreiben"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.display_name": {
+          "source": "Set Document Metadata",
+          "message": "Dokumentmetadaten festlegen"
+        },
+        "app.UERG.action.c2V0LWRvY3VtZW50LW1ldGFkYXRh.short_desc": {
+          "source": "Update PDF metadata",
+          "message": "PDF-Metadaten aktualisieren"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.desc": {
+          "source": "Split a PDF into single-page files",
+          "message": "PDF-Datei in einzelseitige Dateien aufteilen"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.display_name": {
+          "source": "Split Document",
+          "message": "Dokument aufteilen"
+        },
+        "app.UERG.action.c3BsaXQtZG9jdW1lbnQ.short_desc": {
+          "source": "Split a PDF into pages",
+          "message": "PDF-Datei in Seiten aufteilen"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.desc": {
+          "source": "Rotate selected pages by multiples of 90 degrees",
+          "message": "Ausgewählte Seiten um ein Vielfaches von 90 Grad drehen"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.display_name": {
+          "source": "Rotate Pages",
+          "message": "Seiten drehen"
+        },
+        "app.UERG.action.cm90YXRlLXBhZ2Vz.short_desc": {
+          "source": "Rotate specific pages",
+          "message": "Bestimmte Seiten drehen"
+        },
+        "app.UERG.desc": {
+          "source": "Create, edit, and render PDF documents with metadata support",
+          "message": "PDF-Dokumente mit Metadaten-Unterstützung erstellen, bearbeiten und rendern"
+        },
+        "app.UERG.display_name": {
+          "source": "PDF Document",
+          "message": "PDF-Dokument"
+        },
+        "app.UERG.short_desc": {
+          "source": "PDF manipulation and rendering",
+          "message": "PDF-Bearbeitung und -Rendering"
+        }
+      }
+    }
+  }
+}
