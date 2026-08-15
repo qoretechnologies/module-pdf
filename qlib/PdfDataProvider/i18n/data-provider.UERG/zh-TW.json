@@ -242,6 +242,30 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "PDF 操作與算繪"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "算繪頁面"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "算繪 PDF 頁面"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "使用 PDFium 將 PDF 頁面算繪為原始點陣圖"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "擷取文字"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "擷取頁面文字"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "使用 PDFium 從單一 PDF 頁面擷取文字"
         }
       }
     }

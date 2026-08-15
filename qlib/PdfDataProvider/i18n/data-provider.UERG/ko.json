@@ -242,6 +242,30 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "PDF 조작 및 렌더링"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "페이지 렌더링"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "PDF 페이지 렌더링"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "PDFium을 사용하여 PDF 페이지를 원시 비트맵으로 렌더링"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "텍스트 추출"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "페이지 텍스트 추출"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "PDFium을 사용하여 단일 PDF 페이지에서 텍스트 추출"
         }
       }
     }

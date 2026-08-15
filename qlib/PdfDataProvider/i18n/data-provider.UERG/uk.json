@@ -242,6 +242,30 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "Обробка та рендеринг PDF"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "Відобразити сторінку"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "Відобразити сторінку PDF"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "Відобразити сторінку PDF у необроблене растрове зображення за допомогою PDFium"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "Видобути текст"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "Видобути текст сторінки"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "Видобути текст з однієї сторінки PDF за допомогою PDFium"
         }
       }
     }

@@ -242,6 +242,30 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "PDFの操作とレンダリング"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "ページをレンダリング"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "PDFページをレンダリング"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "PDFiumを使用してPDFページを生のビットマップにレンダリング"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "テキストを抽出"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "ページのテキストを抽出"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "PDFiumを使用して単一のPDFページからテキストを抽出"
         }
       }
     }

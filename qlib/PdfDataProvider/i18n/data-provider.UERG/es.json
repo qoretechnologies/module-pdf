@@ -242,6 +242,30 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "Manipulación y renderización de PDF"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "Renderizar página"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "Renderizar una página PDF"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "Renderizar una página PDF como un mapa de bits sin procesar usando PDFium"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "Extraer texto"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "Extraer texto de la página"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "Extraer texto de una sola página PDF usando PDFium"
         }
       }
     }
