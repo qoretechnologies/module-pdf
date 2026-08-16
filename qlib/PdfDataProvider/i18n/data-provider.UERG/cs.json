@@ -242,30 +242,6 @@
         "app.UERG.short_desc": {
           "source": "PDF manipulation and rendering",
           "message": "Manipulace s PDF a jeho vykreslování"
-        },
-        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
-          "source": "Render Page",
-          "message": "Vykreslit stránku"
-        },
-        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
-          "source": "Render a PDF page",
-          "message": "Vykreslit stránku PDF"
-        },
-        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
-          "source": "Render a PDF page to a raw bitmap using PDFium",
-          "message": "Vykreslit stránku PDF do nezpracované bitmapy pomocí PDFium"
-        },
-        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
-          "source": "Extract Text",
-          "message": "Extrahovat text"
-        },
-        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
-          "source": "Extract page text",
-          "message": "Extrahovat text stránky"
-        },
-        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
-          "source": "Extract text from a single PDF page using PDFium",
-          "message": "Extrahovat text z jedné stránky PDF pomocí PDFium"
         }
       }
     }
