@@ -147,6 +147,18 @@
           "source": "Encrypt a PDF with password",
           "message": "암호로 PDF 암호화"
         },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "PDFium을 사용하여 PDF의 단일 페이지에서 텍스트 추출"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "텍스트 추출"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "페이지 텍스트 추출"
+        },
         "app.UERG.action.ZmlsbC1mb3Jt.desc": {
           "source": "Fill form fields with values and optionally flatten to static content",
           "message": "양식 필드에 값을 채우고 선택적으로 정적 콘텐츠로 평탄화"
@@ -230,6 +242,18 @@
         "app.UERG.action.cm90YXRlLXBhZ2Vz.short_desc": {
           "source": "Rotate specific pages",
           "message": "특정 페이지 회전"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "PDFium을 사용하여 PDF 페이지를 원시 비트맵으로 렌더링"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "페이지 렌더링"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "PDF 페이지 렌더링"
         },
         "app.UERG.desc": {
           "source": "Create, edit, and render PDF documents with metadata support",

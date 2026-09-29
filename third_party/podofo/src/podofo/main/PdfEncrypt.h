@@ -10,10 +10,10 @@
 #include "PdfString.h"
 #include "PdfReference.h"
 
-// Define an opaque type for the internal PoDoFo encryption context
-#ifndef PODOFO_CRYPT_CTX
-#define PODOFO_CRYPT_CTX void
-#endif // PODOFO_CRYPT_CTX
+// Keep the opaque encryption type identical in library and client translation
+// units. A void* declaration in clients violates the C++ One Definition Rule.
+#include <openssl/types.h>
+#define PODOFO_CRYPT_CTX EVP_CIPHER_CTX
 
 namespace PoDoFo
 {

@@ -9,7 +9,7 @@ and text extraction.
 ## Requirements
 
 - Qore 2.0+
-- CMake 3.5+
+- CMake 3.23+
 - C++17 compiler
 - QPDF (required)
 - PoDoFo (required; bundled by default)
@@ -30,7 +30,8 @@ sudo apt-get install -y \
   libjpeg-turbo8-dev libtiff-dev zlib1g-dev
 ```
 
-PDFium (optional): not packaged in standard Ubuntu repos; provide a prebuilt
+PDFium (optional for source builds): the Qore testing repository provides
+`libpdfium-qore-dev`. Debian/Ubuntu packages require it. For other builds, provide
 `libpdfium` and pass `-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...`,
 or use `-DENABLE_PDFIUM=OFF`.
 
@@ -177,3 +178,5 @@ This project bundles PoDoFo (LGPL-2.0-or-later). See
 ## Copyright
 
 Copyright 2026 Qore Technologies, s.r.o.
+
+Debian/Ubuntu packaging instructions are in `debian/README.source`.

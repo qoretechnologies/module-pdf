@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.23)
 
 project(qore-pdf-module)
 
@@ -34,14 +34,25 @@ endif()
 option(USE_BUNDLED_PODOFO "Use bundled PoDoFo sources" ON)
 set(PODOFO_BUNDLED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/podofo")
 
-if (USE_BUNDLED_PODOFO AND EXISTS "${PODOFO_BUNDLED_DIR}/CMakeLists.txt")
-    set(PODOFO_BUILD_LIB_ONLY TRUE CACHE BOOL "" FORCE)
-    set(PODOFO_BUILD_TEST FALSE CACHE BOOL "" FORCE)
-    set(PODOFO_BUILD_EXAMPLES FALSE CACHE BOOL "" FORCE)
-    set(PODOFO_BUILD_UNSUPPORTED_TOOLS FALSE CACHE BOOL "" FORCE)
-    set(PODOFO_BUILD_DOC_ONLY FALSE CACHE BOOL "" FORCE)
-
-    add_subdirectory("${PODOFO_BUNDLED_DIR}" third_party/podofo EXCLUDE_FROM_ALL)
+if (USE_BUNDLED_PODOFO)
+    if(NOT EXISTS "${PODOFO_BUNDLED_DIR}/CMakeLists.txt")
+        message(FATAL_ERROR "Bundled PoDoFo sources are missing; use USE_BUNDLED_PODOFO=OFF for a system build")
+    endif()
+    # Dependency options and visibility must not leak into unrelated targets.
+    function(qore_build_private_podofo)
+        set(PODOFO_BUILD_LIB_ONLY TRUE)
+        set(PODOFO_BUILD_TEST FALSE)
+        set(PODOFO_BUILD_EXAMPLES FALSE)
+        set(PODOFO_BUILD_UNSUPPORTED_TOOLS FALSE)
+        set(PODOFO_BUILD_DOC_ONLY FALSE)
+        set(PODOFO_BUILD_STATIC TRUE)
+        set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+        set(CMAKE_C_VISIBILITY_PRESET hidden)
+        set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+        set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+        add_subdirectory("${PODOFO_BUNDLED_DIR}" third_party/podofo EXCLUDE_FROM_ALL)
+    endfunction()
+    qore_build_private_podofo()
     set(PODOFO_INCLUDE_DIRS
         "${PODOFO_BUNDLED_DIR}/src"
         "${CMAKE_CURRENT_BINARY_DIR}/third_party/podofo/src/podofo/podofo/auxiliary"
@@ -49,19 +60,26 @@ if (USE_BUNDLED_PODOFO AND EXISTS "${PODOFO_BUNDLED_DIR}/CMakeLists.txt")
     set(PODOFO_LIBRARIES podofo::podofo)
     set(PODOFO_CFLAGS "")
 else()
-    pkg_check_modules(PODOFO REQUIRED libpodofo)
+    pkg_check_modules(PODOFO REQUIRED libpodofo>=1.0.3)
 endif()
 
-option(ENABLE_PDFIUM "Enable PDFium rendering/text extraction" ON)
+option(ENABLE_PDFIUM "Enable PDFium rendering/text extraction when available" ON)
+option(REQUIRE_PDFIUM "Fail configuration when PDFium rendering/text extraction is unavailable" OFF)
+if(REQUIRE_PDFIUM AND NOT ENABLE_PDFIUM)
+    message(FATAL_ERROR "REQUIRE_PDFIUM requires ENABLE_PDFIUM=ON")
+endif()
 set(PDFIUM_FOUND OFF)
 
 if (ENABLE_PDFIUM)
-    find_path(PDFIUM_INCLUDE_DIR NAMES fpdfview.h)
-    find_library(PDFIUM_LIBRARY NAMES pdfium)
+    find_path(PDFIUM_INCLUDE_DIR NAMES fpdfview.h PATH_SUFFIXES pdfium-qore pdfium)
+    find_library(PDFIUM_LIBRARY NAMES pdfium-qore148 pdfium)
 
     if (PDFIUM_INCLUDE_DIR AND PDFIUM_LIBRARY)
         set(PDFIUM_FOUND ON)
     else()
+        if(REQUIRE_PDFIUM)
+            message(FATAL_ERROR "PDFium headers and library are required")
+        endif()
         message(STATUS "PDFium not found; rendering/text extraction disabled")
     endif()
 endif()
@@ -130,20 +148,11 @@ add_dependencies(${module_name} QORE_INC_FILES)
 target_link_libraries(${module_name} ${QORE_LIBRARY} ${QPDF_LIBRARIES} ${PODOFO_LIBRARIES})
 
 if (USE_BUNDLED_PODOFO)
-    # Keep the bundled PoDoFo next to the module so the loader can find it.
-    # $ORIGIN is Linux-only; macOS uses @loader_path for the same purpose.
-    if (APPLE)
-        set(_rpath_origin "@loader_path")
-    else()
-        set(_rpath_origin "$ORIGIN")
+    target_compile_definitions(${module_name} PRIVATE PODOFO_STATIC)
+    if(UNIX AND NOT APPLE)
+        target_link_options(${module_name} PRIVATE
+            "LINKER:--exclude-libs,libpodofo.a:libpodofo_private.a:libpodofo_3rdparty.a")
     endif()
-    set_target_properties(${module_name} PROPERTIES
-        BUILD_RPATH "${_rpath_origin}"
-        INSTALL_RPATH "${_rpath_origin}"
-    )
-    install(TARGETS podofo_shared
-        LIBRARY DESTINATION ${QORE_MODULES_DIR}
-    )
 endif()
 
 if (PDFIUM_FOUND)
@@ -190,6 +199,12 @@ qore_dist(${PROJECT_VERSION})
 
 qore_user_modules("${QMOD}")
 qore_external_user_module("qlib/PdfDataProvider" "")
+if(TARGET PdfDataProvider-qmod)
+    add_dependencies(PdfDataProvider-qmod ${module_name})
+endif()
+if(COMMAND qore_binary_module_two_phase_docs)
+    qore_binary_module_two_phase_docs(${module_name} "PdfDataProvider")
+endif()
 
 # Reconcile the installed i18n catalog root against the fragments these modules
 # currently own.  Installing catalogs is otherwise additive: a fragment installed by

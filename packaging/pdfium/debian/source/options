@@ -1,0 +1,1 @@
+extend-diff-ignore = "(^|/)(out|buildflags.gni|gclient_args.gni)(/|$)"

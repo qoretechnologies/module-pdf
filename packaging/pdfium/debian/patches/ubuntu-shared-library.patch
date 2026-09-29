@@ -1,0 +1,126 @@
+Description: Build one private PDFium DSO using Ubuntu Clang and Debian flags
+Author: David Nichols <david@qore.org>
+Forwarded: not-needed
+Last-Update: 2026-09-29
+
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -127,7 +127,7 @@
+ }
+ 
+ config("pdfium_implementation_config") {
+-  defines = [ "FPDF_IMPLEMENTATION" ]
++  defines = [ "FPDF_IMPLEMENTATION", "FPDF_SHARED" ]
+   visibility = [ ":pdfium_public_headers" ]
+ }
+ 
+@@ -226,8 +226,11 @@
+   ]
+ }
+ 
+-component("pdfium") {
+-  output_name = "pdfium"
++shared_library("pdfium") {
++  output_name = "pdfium-qore148"
++  output_extension = "so.0"
++  ldflags = [ "-Wl,--version-script=" + rebase_path("//pdfium-exports.map", root_build_dir) ]
++  inputs = [ "//pdfium-exports.map" ]
+   libs = []
+   configs += [ ":pdfium_strict_config" ]
+   public_configs = [ ":pdfium_public_config" ]
+--- a/public/fpdfview.h
++++ b/public/fpdfview.h
+@@ -203,7 +203,7 @@
+ // Dictionary value types.
+ typedef int FPDF_OBJECT_TYPE;
+ 
+-#if defined(COMPONENT_BUILD)
++#if defined(COMPONENT_BUILD) || defined(FPDF_SHARED)
+ // FPDF_EXPORT should be consistent with |export| in the pdfium_fuzzer
+ // template in testing/fuzzers/BUILD.gn.
+ #if defined(WIN32)
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -629,7 +629,7 @@
+     # https://crbug.com/484082200 for background and https://crrev.com/c/7593035
+     # for discussion.
+     if (!is_wasm) {
+-      cflags += [ "-fno-lifetime-dse" ]
++      # Not supported by Ubuntu clang-21; retain the standard safety checks.
+     }
+ 
+     # TODO(hans): Remove this once Clang generates better optimized debug info
+@@ -674,7 +674,7 @@
+     # It also causes segfault on Linux s390x:
+     # https://github.com/llvm/llvm-project/issues/149511
+     if (is_linux && use_lld && current_cpu != "arm" && current_cpu != "s390x") {
+-      cflags += [ "-Wa,--crel,--allow-experimental-crel" ]
++      # Not supported by Ubuntu clang-21; retain the standard safety checks.
+     }
+   }
+ 
+@@ -1049,6 +1049,12 @@
+   if (current_cpu == "arm64") {
+     defines += [ "__ARM_NEON__=1" ]
+   }
++  # Apply Debian hardening, reproducible paths and optimization policy.
++  import("//debian/buildflags.gni")
++  cflags += debian_cppflags
++  cflags_c += debian_cflags
++  cflags_cc += debian_cxxflags
++  ldflags += debian_ldflags
+ }
+ 
+ config("linker") {
+@@ -1910,13 +1916,13 @@
+       # sanitizer) is enabled, they then do expensive debug like operations. We
+       # want to suppress this behaviour since we want to keep performance costs
+       # as low as possible while having these checks.
+-      "-fsanitize-ignore-for-ubsan-feature=array-bounds",
++      # Not supported by Ubuntu clang-21; retain the standard safety checks.
+ 
+       # Because we've enabled array-bounds sanitizing we also want to suppress
+       # the related warning about "unsafe-buffer-usage-in-static-sized-array",
+       # since we know that the array bounds sanitizing will catch any out-of-
+       # bounds accesses.
+-      "-Wno-unsafe-buffer-usage-in-static-sized-array",
++      # Not supported by Ubuntu clang-21; retain the standard safety checks.
+     ]
+   }
+ }
+@@ -1934,7 +1940,7 @@
+       # sanitizer) is enabled, they then do expensive debug like operations. We
+       # want to suppress this behaviour since we want to keep performance costs
+       # as low as possible while having these checks.
+-      "-fsanitize-ignore-for-ubsan-feature=return",
++      # Not supported by Ubuntu clang-21; retain the standard safety checks.
+     ]
+   }
+ }
+--- a/build/config/clang/BUILD.gn
++++ b/build/config/clang/BUILD.gn
+@@ -231,6 +231,17 @@
+         assert(false)  # Unhandled target platform
+       }
+ 
++      # Ubuntu compiler-rt uses the legacy Linux directory and CPU suffix.
++      if (is_linux && clang_base_path != default_clang_base_path) {
++        _dir = "linux"
++        if (current_cpu == "x64") {
++          _suffix = "-x86_64"
++        } else if (current_cpu == "arm64") {
++          _suffix = "-aarch64"
++        } else {
++          assert(false, "Unsupported distribution compiler-rt architecture")
++        }
++      }
+       _clang_lib_dir = "$clang_base_path/lib/clang/$clang_version/lib"
+       _lib_file = "${_prefix}clang_rt.${_libname}${_suffix}.${_ext}"
+       libs = [ "$_clang_lib_dir/$_dir/$_lib_file" ]
+--- /dev/null
++++ b/pdfium-exports.map
+@@ -0,0 +1,4 @@
++{
++  global: FPDF*; FORM_*; FSDK_*;
++  local: *;
++};

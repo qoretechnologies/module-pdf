@@ -1,0 +1,7 @@
+#!/bin/sh
+# Copyright (C) 2026 David Nichols
+# SPDX-License-Identifier: MIT
+set -eu
+unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH LD_LIBRARY_PATH LD_PRELOAD PKG_CONFIG_PATH
+cc -Wall -Wextra -Werror debian/tests/api.c $(pkg-config --cflags --libs pdfium-qore) -o "$AUTOPKGTEST_TMP/pdfium-api"
+"$AUTOPKGTEST_TMP/pdfium-api"

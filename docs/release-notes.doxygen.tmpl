@@ -3,5 +3,8 @@
     @section pdf_1_0_0 pdf Module Version 1.0.0
     - initial release
     - bundled PoDoFo to include a fix for a CFF font-embedding leak in
-      the AFDKO subsetting path; optional PDFium remains unchanged
+      the AFDKO subsetting path
+    - serialize PDFium access across threads, reject overflowing page indexes and
+      bitmap dimensions, and support cancellation while waiting or rendering
+    - add Debian/Ubuntu packages with PDFium rendering and text extraction enabled
 */

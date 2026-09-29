@@ -27,6 +27,8 @@
 #include "QC_PdfRenderer.h"
 #include "PdfRenderer.h"
 
+#include <limits>
+
 //! Rendered PDF page data
 /**
     Bitmap payload for rendered PDF pages.
@@ -50,6 +52,17 @@ hashdecl Qore::Pdf::PdfRenderResult {
 
 //! PDF rendering and text extraction
 /**
+    PDFium calls are serialized across threads. Waiting for another call and
+    progressive bitmap rendering support cooperative cancellation. PDFium page
+    loading and text parsing finish their current library operation before the
+    next cancellation check.
+
+    @par Example
+    @code
+    string text = PdfRenderer::extractText("invoice.pdf", 0);
+    hash<PdfRenderResult> preview = PdfRenderer::renderPage("invoice.pdf", 0, 72);
+    @endcode
+
     @since %pdf 1.0
 */
 qclass PdfRenderer [arg=void* priv; ns=Qore::Pdf];
@@ -58,92 +71,92 @@ qclass PdfRenderer [arg=void* priv; ns=Qore::Pdf];
 /**
     @return True if PDFium support is compiled in
 */
-static bool PdfRenderer::isAvailable() {
+static bool PdfRenderer::isAvailable() [flags=CONSTANT] {
     return QorePdfRenderer::isAvailable();
 }
 
 //! Renders a page to a bitmap
 /** @param path PDF path
-    @param page_index zero-based page index
-    @param dpi resolution in DPI
+    @param page_index zero-based page index, at most 2147483647
+    @param dpi positive resolution in DPI, at most 2147483647; resulting bitmap
+    dimensions and allocation must also fit PDFium limits
 
     @return a @ref Qore::Pdf::PdfRenderResult hash with pixel data
 
-    @throw PDF-ERROR if rendering fails or PDFium is unavailable
+    @throw PDF-ERROR if rendering fails, dimensions are out of range, or PDFium is unavailable
 */
 static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index,
-        *int dpi = 150) [dom=FILESYSTEM;flags=NAMED_ARGS] {
-    int dpi_value = dpi;
-    if (dpi_value <= 0) {
-        xsink->raiseException("PDF-ERROR", "DPI must be positive");
+        *int dpi = 150) [dom=FILESYSTEM;flags=NAMED_ARGS,RET_VALUE_ONLY] {
+    if (dpi <= 0 || dpi > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "DPI must be positive and fit in a signed 32-bit integer");
         return QoreValue();
     }
-    if (page_index < 0) {
-        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+    if (page_index < 0 || page_index > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative and fit in a signed 32-bit integer");
         return QoreValue();
     }
-    return QorePdfRenderer::renderPage(path->c_str(), page_index, dpi_value, xsink);
+    return QorePdfRenderer::renderPage(path->c_str(), static_cast<int>(page_index), static_cast<int>(dpi), xsink);
 }
 
 //! Renders a page from binary data to a bitmap
 /** @param data binary PDF data
-    @param page_index zero-based page index
-    @param dpi resolution in DPI
+    @param page_index zero-based page index, at most 2147483647
+    @param dpi positive resolution in DPI, at most 2147483647; resulting bitmap
+    dimensions and allocation must also fit PDFium limits
 
     @return a @ref Qore::Pdf::PdfRenderResult hash with pixel data
 
-    @throw PDF-ERROR if rendering fails or PDFium is unavailable
+    @throw PDF-ERROR if rendering fails, dimensions are out of range, or PDFium is unavailable
 */
 static hash<PdfRenderResult> PdfRenderer::renderPageFromData(binary data, int page_index,
-        *int dpi = 150) [flags=NAMED_ARGS] {
-    int dpi_value = dpi;
-    if (dpi_value <= 0) {
-        xsink->raiseException("PDF-ERROR", "DPI must be positive");
+        *int dpi = 150) [flags=NAMED_ARGS,RET_VALUE_ONLY] {
+    if (dpi <= 0 || dpi > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "DPI must be positive and fit in a signed 32-bit integer");
         return QoreValue();
     }
-    if (page_index < 0) {
-        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+    if (page_index < 0 || page_index > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative and fit in a signed 32-bit integer");
         return QoreValue();
     }
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return QoreValue();
     }
-    return QorePdfRenderer::renderPageFromData(data, page_index, dpi_value, xsink);
+    return QorePdfRenderer::renderPageFromData(data, static_cast<int>(page_index), static_cast<int>(dpi), xsink);
 }
 
 //! Extracts text from a page
 /** @param path PDF path
-    @param page_index zero-based page index
+    @param page_index zero-based page index, at most 2147483647
 
     @return extracted text
 
     @throw PDF-ERROR if extraction fails or PDFium is unavailable
 */
-static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM;flags=NAMED_ARGS] {
-    if (page_index < 0) {
-        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM;flags=NAMED_ARGS,RET_VALUE_ONLY] {
+    if (page_index < 0 || page_index > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative and fit in a signed 32-bit integer");
         return QoreValue();
     }
-    return QorePdfRenderer::extractText(path->c_str(), page_index, xsink);
+    return QorePdfRenderer::extractText(path->c_str(), static_cast<int>(page_index), xsink);
 }
 
 //! Extracts text from a page using binary data
 /** @param data binary PDF data
-    @param page_index zero-based page index
+    @param page_index zero-based page index, at most 2147483647
 
     @return extracted text
 
     @throw PDF-ERROR if extraction fails or PDFium is unavailable
 */
-static string PdfRenderer::extractTextFromData(binary data, int page_index) [flags=NAMED_ARGS] {
-    if (page_index < 0) {
-        xsink->raiseException("PDF-ERROR", "Page index must be non-negative");
+static string PdfRenderer::extractTextFromData(binary data, int page_index) [flags=NAMED_ARGS,RET_VALUE_ONLY] {
+    if (page_index < 0 || page_index > std::numeric_limits<int>::max()) {
+        xsink->raiseException("PDF-ERROR", "Page index must be non-negative and fit in a signed 32-bit integer");
         return QoreValue();
     }
     if (!data || data->size() == 0) {
         xsink->raiseException("PDF-ERROR", "data is required");
         return QoreValue();
     }
-    return QorePdfRenderer::extractTextFromData(data, page_index, xsink);
+    return QorePdfRenderer::extractTextFromData(data, static_cast<int>(page_index), xsink);
 }

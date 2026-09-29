@@ -147,6 +147,18 @@
           "source": "Encrypt a PDF with password",
           "message": "Crittografa un PDF con password"
         },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "Estrarre il testo da una singola pagina PDF con PDFium"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "Estrarre testo"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "Estrarre il testo della pagina"
+        },
         "app.UERG.action.ZmlsbC1mb3Jt.desc": {
           "source": "Fill form fields with values and optionally flatten to static content",
           "message": "Compila i campi del modulo con i valori e opzionalmente appiattisci a contenuto statico"
@@ -230,6 +242,18 @@
         "app.UERG.action.cm90YXRlLXBhZ2Vz.short_desc": {
           "source": "Rotate specific pages",
           "message": "Ruota pagine specifiche"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "Renderizzare una pagina PDF come bitmap grezza con PDFium"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "Renderizzare pagina"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "Renderizzare una pagina PDF"
         },
         "app.UERG.desc": {
           "source": "Create, edit, and render PDF documents with metadata support",

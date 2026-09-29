@@ -1,0 +1,26 @@
+#!/bin/sh
+# Copyright (C) 2026 David Nichols
+# SPDX-License-Identifier: MIT
+set -eu
+unset QORE_MODULE_DIR QORE_MODULE_DIR_ONLY QORE_INCLUDE_DIR LD_LIBRARY_PATH LD_PRELOAD
+cd "$AUTOPKGTEST_TMP"
+cat > pdf-smoke.q <<'EOF'
+%modern
+%requires pdf
+%requires PdfDataProvider
+%requires DataProvider
+PdfWriter writer();
+writer.addTextPage("Packaged invoice");
+writer.save("package.pdf");
+PdfReader reader("package.pdf");
+if (!PdfRenderer::isAvailable()
+        || PdfRenderer::extractText("package.pdf", 0).find("Packaged invoice") < 0
+        || !PdfRenderer::renderPage("package.pdf", 0, 20).data.size()) {
+    throw "PACKAGE-TEST-ERROR", "Installed PDFium rendering or extraction failed";
+}
+if (reader.pageCount() != 1 || DataProvider::getFactory("pdf").getInfo().name != "pdf") {
+    throw "PACKAGE-TEST-ERROR", "Installed PDF round trip or provider failed";
+}
+EOF
+/usr/bin/qcc -o pdf-smoke pdf-smoke.q
+./pdf-smoke

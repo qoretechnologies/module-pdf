@@ -1,0 +1,8 @@
+qore-pdfium (148.0.7778+ds-0qore1~ubuntu26.04) resolute; urgency=medium
+
+  * Build PDFium and GN from pinned upstream sources without network access.
+  * Use system image, font, color, compression and Unicode dependencies.
+  * Export only the public C API with a milestone-specific SONAME.
+  * Include development files, debug symbols and installed C API tests.
+
+ -- David Nichols <david@qore.org>  Tue, 29 Sep 2026 06:00:00 +0000

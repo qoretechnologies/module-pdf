@@ -1,0 +1,37 @@
+Qore PDF module packages
+========================
+
+Runtime includes native bindings, source/AOT PdfDataProvider, compiler metadata,
+provider resources and every committed translation. Separate documentation and
+debug-symbol packages are built. This snapshot targets qore-testing.
+
+Export tracked sources excluding debian/ and Files-Excluded paths, preserving
+all retained third-party license notices. PoDoFo 1.0.3 and the existing CFF leak
+fix are part of the tracked source; private static linkage and hidden archive
+symbols prevent collision with the system PoDoFo. No bundled headers/libraries
+are installed. Its graphics, font and crypto dependencies are system libraries.
+No dependency is downloaded during a package build.
+
+Prepare orig/debian sources with the changelog version, then build rootless with
+dpkg-buildpackage. Native builds use the packaged Qore SDK; cross builds are
+rejected. Full, -B, -A, nocheck and nodoc profiles are supported. Qualification
+covers upstream suites, installed runtime/fresh qcc, source modules, translations,
+metadata, debug symbols, install/purge/reinstall and reproducibility.
+
+Only Ubuntu 26.04 amd64 / Qore SDK .12 is initially qualified. Other targets,
+upgrade baselines and the Qore ABI freeze remain general-release requirements.
+Private dependencies require upstream security monitoring. Testing PPA sources
+must be signed and depend on the matching published SDK.
+
+PDFium is required for the Debian/Ubuntu package. Install libpdfium-qore-dev
+from the matching Qore testing repository before building. Its separate
+qore-pdfium source package bootstraps pinned PDFium and GN sources offline,
+uses system image/font/Unicode libraries and carries a milestone-specific
+SONAME. ENABLE_PDFIUM=ON and REQUIRE_PDFIUM=ON make missing support fatal;
+package tests also require rendering and text extraction to be available.
+
+Renderer regression tests cover overflowing Qore integers, bitmap limits,
+file/memory parity, concurrent calls and interrupted memory operations.
+The bundled PoDoFo encryption context has one consistent opaque OpenSSL
+type in all translation units, allowing a valid LTO build. Its original
+CFF font-embedding leak fix is retained.

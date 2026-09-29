@@ -1,0 +1,3 @@
+Tests: api
+Depends: @, gcc, pkgconf
+Restrictions: allow-stderr

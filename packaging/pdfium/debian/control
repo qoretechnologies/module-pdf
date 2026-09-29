@@ -1,0 +1,32 @@
+Source: qore-pdfium
+Section: libs
+Priority: optional
+Maintainer: David Nichols <david@qore.org>
+Build-Depends: debhelper-compat (= 13),
+               clang-21, libclang-rt-21-dev, lld-21, llvm-21,
+               ninja-build, pkgconf, python3, python3-jinja2,
+               libfreetype-dev, libicu-dev (>= 78), liblcms2-dev,
+               libopenjp2-7-dev, libjpeg-dev, libpng-dev, libtiff-dev,
+               zlib1g-dev, libbrotli-dev, libglib2.0-dev
+Standards-Version: 4.7.3
+Rules-Requires-Root: no
+Homepage: https://pdfium.googlesource.com/pdfium/
+
+Package: libpdfium-qore148-0
+Architecture: amd64 arm64
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: PDF rendering library for Qore (Chromium milestone 148)
+ PDFium renders PDF pages and extracts text, with system font, color,
+ compression and Unicode libraries. JavaScript, XFA and Skia are disabled.
+ This package exposes PDFium's C API with a milestone-specific SONAME;
+ internal C++ dependencies are private to the library.
+
+Package: libpdfium-qore-dev
+Section: libdevel
+Architecture: amd64 arm64
+Multi-Arch: same
+Depends: libpdfium-qore148-0 (= ${binary:Version}), ${misc:Depends}
+Description: development files for Qore's PDFium library
+ C headers, the linker symlink and pkg-config metadata for the PDFium
+ rendering library used by the Qore PDF module.

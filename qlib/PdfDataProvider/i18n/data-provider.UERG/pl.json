@@ -147,6 +147,18 @@
           "source": "Encrypt a PDF with password",
           "message": "Zaszyfruj plik PDF za pomocą hasła"
         },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.desc": {
+          "source": "Extract text from a single PDF page using PDFium",
+          "message": "Wyodrębnij tekst z jednej strony PDF za pomocą PDFium"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.display_name": {
+          "source": "Extract Text",
+          "message": "Wyodrębnij tekst"
+        },
+        "app.UERG.action.ZXh0cmFjdC10ZXh0.short_desc": {
+          "source": "Extract page text",
+          "message": "Wyodrębnij tekst strony"
+        },
         "app.UERG.action.ZmlsbC1mb3Jt.desc": {
           "source": "Fill form fields with values and optionally flatten to static content",
           "message": "Wypełnij pola formularza wartościami i opcjonalnie spłaszcz do treści statycznej"
@@ -230,6 +242,18 @@
         "app.UERG.action.cm90YXRlLXBhZ2Vz.short_desc": {
           "source": "Rotate specific pages",
           "message": "Obróć określone strony"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.desc": {
+          "source": "Render a PDF page to a raw bitmap using PDFium",
+          "message": "Renderuj stronę PDF do surowej bitmapy za pomocą PDFium"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.display_name": {
+          "source": "Render Page",
+          "message": "Renderuj stronę"
+        },
+        "app.UERG.action.cmVuZGVyLXBhZ2U.short_desc": {
+          "source": "Render a PDF page",
+          "message": "Renderuj stronę PDF"
         },
         "app.UERG.desc": {
           "source": "Create, edit, and render PDF documents with metadata support",

@@ -1,0 +1,10 @@
+qore-pdf-module (1.0.0~git20260928.1+ds-0qore1~ubuntu26.04) resolute; urgency=medium
+
+  * Package native and source/AOT PDF modules, metadata and translations.
+  * Include API references, examples and debug symbols.
+  * Isolate patched PoDoFo with system graphics/font/crypto dependencies.
+  * Add offline reproducible package profiles and installed runtime tests.
+  * Fix PDFium concurrency, integer bounds and rendering cancellation.
+  * Include complete rendering/extraction action catalogs in all locales.
+
+ -- David Nichols <david@qore.org>  Tue, 29 Sep 2026 05:48:05 +0000

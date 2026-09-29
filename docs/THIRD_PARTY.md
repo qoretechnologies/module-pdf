@@ -11,3 +11,7 @@
 
 When updating PoDoFo, re-apply the patch if it is not yet upstream and re-run
 the module's tests with `qore -penable-debug` and valgrind (`qore -b`).
+
+The bundled PoDoFo encryption context also uses the same opaque OpenSSL type
+in library and client translation units. This removes a One Definition Rule
+violation reported by LTO when statically linking the private library.

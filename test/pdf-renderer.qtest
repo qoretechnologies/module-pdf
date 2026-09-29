@@ -1,0 +1,171 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore pdf module test suite
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%modern
+%prepend-module-path "${SCRIPT_DIR}/../build"
+%prepend-module-path "${SCRIPT_DIR}/../qlib"
+%requires QUnit
+%requires FsUtil
+%requires pdf
+%exec-class PdfRendererTest
+
+class PdfRendererTest inherits QUnit::Test {
+    private {
+        TmpDir tmp;
+        string path;
+        binary data;
+    }
+
+    constructor() : Test("PdfRendererTest", "1.0") {
+        addTestCase("PDFium availability", \availability());
+        addTestCase("File and memory rendering", \roundTrip());
+        addTestCase("Integer and bitmap bounds", \bounds());
+        addTestCase("Concurrent rendering and extraction", \concurrent());
+        addTestCase("Memory operations honor interrupts", \interrupt());
+        set_return_value(main());
+    }
+
+    globalSetUp() {
+        tmp = new TmpDir();
+        path = tmp.path + "/invoice.pdf";
+        PdfWriter writer();
+        writer.addTextPage("Invoice 2026: paid");
+        writer.save(path);
+        File input();
+        input.open(path, O_RDONLY);
+        data = input.readBinary(-1);
+        input.close();
+    }
+
+    availability() {
+        if (getenv("QORE_PDF_REQUIRE_PDFIUM")) {
+            assertTrue(PdfRenderer::isAvailable(), "packaged renderer must include PDFium");
+        } else {
+            assertTrue(True, "PDFium is optional for source builds");
+        }
+    }
+
+    private bool available() {
+        if (PdfRenderer::isAvailable()) {
+            return True;
+        }
+        testSkip("PDFium is unavailable in this source build");
+        return False;
+    }
+
+    roundTrip() {
+        if (!available()) return;
+        string text = PdfRenderer::extractText(path, 0);
+        assertTrue(text.find("Invoice 2026: paid") >= 0);
+        assertEq(text, PdfRenderer::extractTextFromData(data, 0));
+        hash<PdfRenderResult> bitmap = PdfRenderer::renderPage(path, 0, 36);
+        hash<PdfRenderResult> memory = PdfRenderer::renderPageFromData(data, 0, 36);
+        assertEq(bitmap, memory);
+        assertEq("BGRA", bitmap.format);
+        assertTrue(bitmap.width > 0 && bitmap.height > 0);
+        assertTrue(bitmap.stride >= 4 * bitmap.width);
+        assertEq(bitmap.stride * bitmap.height, bitmap.data.size());
+        assertEq(PdfRenderer::renderPage(path, 0, 150), PdfRenderer::renderPage(path, 0));
+        assertEq(PdfRenderer::renderPageFromData(data, 0, 150), PdfRenderer::renderPageFromData(data, 0));
+        PdfWriter blank();
+        blank.addBlankPage();
+        string blankPath = tmp.path + "/blank.pdf";
+        blank.save(blankPath);
+        assertEq("", PdfRenderer::extractText(blankPath, 0));
+    }
+
+    bounds() {
+        if (!available()) return;
+        foreach int page in ((-1, 1, 2147483647, 2147483648, 4294967296)) {
+            assertThrows("PDF-ERROR", \PdfRenderer::renderPage(), (path, page, 36));
+            assertThrows("PDF-ERROR", \PdfRenderer::renderPageFromData(), (data, page, 36));
+            assertThrows("PDF-ERROR", \PdfRenderer::extractText(), (path, page));
+            assertThrows("PDF-ERROR", \PdfRenderer::extractTextFromData(), (data, page));
+        }
+        foreach int dpi in ((-1, 0, 2147483647, 2147483648, 4294967368)) {
+            assertThrows("PDF-ERROR", \PdfRenderer::renderPage(), (path, 0, dpi));
+            assertThrows("PDF-ERROR", \PdfRenderer::renderPageFromData(), (data, 0, dpi));
+        }
+        assertThrows("PDF-ERROR", \PdfRenderer::extractTextFromData(), (binary(""), 0));
+        assertThrows("PDF-ERROR", \PdfRenderer::renderPageFromData(), (binary(""), 0, 36));
+        binary corrupt = binary("not a PDF");
+        assertThrows("PDF-ERROR", \PdfRenderer::extractTextFromData(), (corrupt, 0));
+        assertThrows("PDF-ERROR", \PdfRenderer::renderPageFromData(), (corrupt, 0, 36));
+    }
+
+    concurrent() {
+        if (!available()) return;
+        Counter ready(4);
+        Counter start(1);
+        Counter done(4);
+        Queue<string> results();
+        for (int worker = 0; worker < 4; ++worker) {
+            background sub () {
+                on_exit done.dec();
+                ready.dec();
+                start.waitForZero();
+                try {
+                    for (int i = 0; i < 10; ++i) {
+                        string content = i % 2 ? PdfRenderer::extractText(path, 0)
+                            : PdfRenderer::extractTextFromData(data, 0);
+                        hash<PdfRenderResult> bitmap = i % 2 ? PdfRenderer::renderPage(path, 0, 20)
+                            : PdfRenderer::renderPageFromData(data, 0, 20);
+                        if (content.find("Invoice 2026: paid") < 0
+                                || bitmap.data.size() != bitmap.stride * bitmap.height) {
+                            throw "TEST-ERROR", "Concurrent render result corrupted";
+                        }
+                    }
+                    results.push("PASS");
+                } catch (hash<ExceptionInfo> ex) {
+                    results.push(ex.err + ": " + ex.desc);
+                }
+            }();
+        }
+        ready.waitForZero();
+        start.dec();
+        done.waitForZero();
+        for (int worker = 0; worker < 4; ++worker) {
+            assertEq("PASS", results.pop());
+        }
+    }
+
+    interrupt() {
+        if (!available()) return;
+        SandboxManager sm();
+        Program program(PO_NO_CHILD_PO_RESTRICTIONS);
+        program.setSandboxManager(sm);
+        program.parse("%modern\n%requires pdf\n"
+            "hash<PdfRenderResult> sub render(binary data) { return PdfRenderer::renderPageFromData(data, 0, 36); }\n"
+            "string sub extractPageText(binary data) { return PdfRenderer::extractTextFromData(data, 0); }\n",
+            "pdf_memory_interrupt");
+        sm.requestInterrupt();
+        assertThrows("PROGRAM-INTERRUPTED", \program.callFunction(), ("render", data));
+        assertThrows("PROGRAM-INTERRUPTED", \program.callFunction(), ("extractPageText", data));
+        # An interrupted call must release the library lock for subsequent users.
+        assertTrue(PdfRenderer::extractTextFromData(data, 0).find("Invoice 2026: paid") >= 0);
+    }
+}

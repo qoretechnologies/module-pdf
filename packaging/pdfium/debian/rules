@@ -1,0 +1,39 @@
+#!/usr/bin/make -f
+# Copyright (C) 2026 David Nichols
+# SPDX-License-Identifier: MIT
+include /usr/share/dpkg/architecture.mk
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
+include /usr/share/dpkg/buildflags.mk
+export LC_ALL = C.UTF-8
+export TZ = UTC
+export CC = clang-21
+export CXX = clang++-21
+unexport CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH LD_LIBRARY_PATH LD_PRELOAD
+
+%:
+	dh $@ --buildsystem=none
+
+override_dh_auto_configure:
+	test '$(DEB_BUILD_GNU_TYPE)' = '$(DEB_HOST_GNU_TYPE)'
+	python3 debian/build.py configure
+
+override_dh_auto_build:
+	ninja -C out/Release -j$$(python3 debian/build.py jobs) pdfium
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS) $(DEB_BUILD_PROFILES)))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Ipublic debian/tests/api.c -Lout/Release -l:libpdfium-qore148.so.0 $(LDFLAGS) -o out/Release/api-test
+	LD_LIBRARY_PATH=$(CURDIR)/out/Release out/Release/api-test
+endif
+
+override_dh_auto_install:
+	python3 debian/build.py install
+
+override_dh_auto_clean:
+	python3 debian/build.py clean
+
+override_dh_missing:
+	dh_missing --fail-missing
+
+override_dh_makeshlibs:
+	dh_makeshlibs -V'libpdfium-qore148-0 (>= 148.0.7778)' -- -c4

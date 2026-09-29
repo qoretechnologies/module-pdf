@@ -1,0 +1,33 @@
+Qore PDFium dependency for Ubuntu 26.04
+=====================================
+
+The PDFium commit and every dependency commit are recorded in
+QORE-SOURCE-MANIFEST.json. The source archive contains no downloaded SDK,
+compiler or prebuilt library. GN is bootstrapped from its pinned source,
+with the upstream commit position recorded explicitly for reproducibility.
+Builds require no network access. The source archive excludes unused
+Android binaries, test fixtures/fonts and macOS APSL allocator files.
+
+The private C++ dependency closure is linked into one DSO; only FPDF*,
+FORM_* and FSDK_* public C symbols are exported. System ICU, FreeType,
+LCMS, OpenJPEG, JPEG, PNG, TIFF, zlib and Brotli are used. No V8, XFA or
+Skia dependency is needed by Qore's rendering and text extraction APIs.
+The SONAME includes milestone 148 because PDFium does not promise ABI
+compatibility between milestones. The development package has an exact
+runtime dependency and a distinct include directory and pkg-config name.
+
+The original Qore CI pin is Chromium branch 7778, commit
+72ea487e4399c44c3a53a48b104f9612ca772008. Future security updates must be
+reviewed against this upstream branch; a new milestone requires a new
+SONAME and rebuild of the Qore PDF module. This testing package does not
+establish a security maintenance policy for a general release.
+
+Build with dpkg-buildpackage -b -us -uc. Debian build flags apply to the
+library; native amd64 and arm64 toolchain mappings are provided. Cross
+compilation is rejected. Only architectures actually tested should be
+published. The build and autopkgtest exercise the public C API, including
+real rendered pixels and text extraction. They do not claim to replace
+the complete upstream PDFium test suite.
+
+Split DWARF is disabled so the automatic dbgsym package contains complete
+debug information rather than references to build-directory .dwo files.

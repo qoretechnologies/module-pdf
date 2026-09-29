@@ -1,0 +1,5 @@
+usr/lib/*/qore-modules/*.qmod
+usr/lib/*/qore-modules/PdfDataProvider/
+usr/share/qore-modules/PdfDataProvider/
+usr/share/qore/metadata/pdf/*.meta.json
+usr/share/qore/i18n/

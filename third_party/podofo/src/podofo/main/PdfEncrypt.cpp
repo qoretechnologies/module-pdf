@@ -12,8 +12,6 @@
 #include <podofo/private/PdfDeclarationsPrivate.h>
 #include <podofo/private/OpenSSLInternal.h>
 
-// Early define PODOFO_CRYPT_CTX to desired type
-#define PODOFO_CRYPT_CTX EVP_CIPHER_CTX
 #include "PdfEncrypt.h"
 
 #include <openssl/md5.h>
