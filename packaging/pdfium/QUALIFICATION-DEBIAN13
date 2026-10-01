@@ -1,0 +1,36 @@
+Debian 13 PDFium qualification: 2026-10-01
+========================================
+
+Copyright 2026 Qore Technologies, s.r.o.
+
+Result: PASS on native amd64 and arm64, using Debian 13 libraries and Clang 21
+from trixie-backports. These are unsigned local development artifacts.
+
+Source version: 148.0.7778+ds-0qore1~deb13
+PDFium commit: 72ea487e4399c44c3a53a48b104f9612ca772008
+Recipe base: 8c3a11b1146b98d6d428ee13616c79685139700d
+Recipe correction: libicu-dev minimum lowered from 78 to 76, as tested below.
+The source manifest records the exact candidate recipe file hashes.
+
+Evidence: qore-debian13-final-modules-20261001/dependencies on both hosts;
+<architecture>/pdfium/QUALIFICATION.json, inspection-*.json and
+reproducibility.json; pdfium-source-reproducibility.json records source hashes.
+
+- Independent preparation reproduces the .dsc and source archives exactly.
+- Two offline, unprivileged full builds per CPU vary paths, parallelism,
+  locale and timezone. All three packages reproduce byte-for-byte on each CPU.
+- Source and binary Lintian checks pass without errors using the Debian profile.
+- Runtime ELF hardening and matching detached DWARF/build IDs/debuglink CRCs pass.
+- The installed SDK C API test passes offline as an unprivileged user on each
+  CPU, exercising real rendered pixels and text extraction.
+- File verification, purge/autoremove/reinstall and a complete API retest pass.
+
+The first qualification attempt used a future changelog date and therefore
+failed timestamp reproducibility. Its evidence is retained separately; the
+accepted candidate has a fixed past changelog date. No binary normalization
+was used to obtain the matching packages.
+
+This covers the packaged public API test, not the complete upstream PDFium
+suite. Security maintenance, final release acceptance and signed archive
+publication remain separate gates. Ubuntu binaries depend on newer system
+libraries; Debian requires its own builds from the shared source recipe.

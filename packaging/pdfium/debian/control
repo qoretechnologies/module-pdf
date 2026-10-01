@@ -5,7 +5,7 @@ Maintainer: David Nichols <david@qore.org>
 Build-Depends: debhelper-compat (= 13),
                clang-21, libclang-rt-21-dev, lld-21, llvm-21,
                ninja-build, pkgconf, python3, python3-jinja2,
-               libfreetype-dev, libicu-dev (>= 78), liblcms2-dev,
+               libfreetype-dev, libicu-dev (>= 76), liblcms2-dev,
                libopenjp2-7-dev, libjpeg-dev, libpng-dev, libtiff-dev,
                zlib1g-dev, libbrotli-dev, libglib2.0-dev
 Standards-Version: 4.7.3
