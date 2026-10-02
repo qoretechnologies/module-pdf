@@ -1,12 +1,12 @@
 /**
 \mainpage Qore PDF Module
 
-\section intro Introduction
+\section pdfintro Introduction
 
 The `pdf` module provides PDF functionality for Qore using QPDF and PoDoFo,
 with optional PDFium support for rendering and text extraction.
 
-\section features Features
+\section pdffeatures Features
 
 - Create PDFs with PoDoFo
 - Read/edit/merge/split PDFs with QPDF
@@ -19,7 +19,7 @@ The @ref PdfDataProvider::PdfDataProvider "PdfDataProvider" module provides inte
 DataProvider API. See the <a href="../../PdfDataProvider/html/index.html">PdfDataProvider module documentation</a>
 for complete API reference.
 
-\section dataprov Data Provider Actions
+\section pdfdataprov Data Provider Actions
 
 The module ships with PdfDataProvider for Qore's data provider framework.
 Example `qdp` commands:
@@ -34,13 +34,13 @@ qdp 'pdf{}/render/page' input_path=out.pdf,page_index=0,dpi=150
 qdp 'pdf{}/render/extract-text' input_path=out.pdf,page_index=0
 \endcode
 
-\section dependencies Dependencies
+\section pdfdependencies Dependencies
 
 - QPDF (required)
 - PoDoFo (required; bundled by default, LGPL-2.0-or-later)
 - PDFium (optional)
 
-\section packages OS Packages
+\section pdfpackages OS Packages
 
 The bundled PoDoFo build requires common graphics/font libraries. PDFium is
 optional; there is no MacPorts PDFium port.
@@ -93,7 +93,7 @@ sudo port install \
 
 See \subpage pdfreleasenotes for release notes and version history.
 
-\section license License
+\section pdflicense License
 
 MIT License
 */
