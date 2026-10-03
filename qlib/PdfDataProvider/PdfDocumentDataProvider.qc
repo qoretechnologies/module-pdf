@@ -35,7 +35,7 @@ public namespace PdfDataProvider {
     - @b rotate - Rotate pages
 
     @par Data Provider Path
-    Access via: pdf{}/document/<action>
+    Access via: <tt>pdf{}/document/&lt;action&gt;</tt>
 */
 public class PdfDocumentDataProvider inherits AbstractDataProvider {
     public {

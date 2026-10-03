@@ -31,10 +31,10 @@ public namespace PdfDataProvider {
     - @b extract-text - Extract text content from a page
 
     @note This provider is only available when the pdf module is built with PDFium support.
-    Use @ref PdfRenderer::isAvailable() to check availability.
+    Use @ref Qore::Pdf::PdfRenderer::isAvailable() to check availability.
 
     @par Data Provider Path
-    Access via: pdf{}/render/<action>
+    Access via: <tt>pdf{}/render/&lt;action&gt;</tt>
 */
 public class PdfRenderDataProvider inherits AbstractDataProvider {
     public {
