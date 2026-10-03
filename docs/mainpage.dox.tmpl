@@ -5,7 +5,7 @@
 
     <img src="pdf-logo.svg" width="96" alt="pdf module logo"/>
 
-    The `pdf` module provides PDF functionality for Qore using QPDF and PoDoFo,
+    The <tt>pdf</tt> module provides PDF functionality for Qore using QPDF and PoDoFo,
 with optional PDFium support for rendering and text extraction.
 
     @section pdfqlibmodules Qore User Modules
@@ -28,7 +28,7 @@ for complete API reference.
 \section pdfdataprov Data Provider Actions
 
 The module ships with PdfDataProvider for Qore's data provider framework.
-Example `qdp` commands:
+Example <tt>qdp</tt> commands:
 
 \code{.bash}
 qdp 'pdf{}/document/create' output_path=out.pdf,page_count=2
@@ -62,8 +62,8 @@ sudo apt-get install -y \
 \endcode
 
 PDFium (optional): not packaged in standard Ubuntu repos; provide a prebuilt
-`libpdfium` and pass `-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...`,
-or use `-DENABLE_PDFIUM=OFF`.
+<tt>libpdfium</tt> and pass <tt>-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...</tt>,
+or use <tt>-DENABLE_PDFIUM=OFF</tt>.
 
 \subsection packages_alpine Alpine
 
@@ -74,9 +74,9 @@ sudo apk add --no-cache \
   libjpeg-turbo-dev tiff-dev zlib-dev
 \endcode
 
-PDFium (optional): not in Alpine repos; provide a prebuilt `libpdfium` and pass
-`-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...`,
-or use `-DENABLE_PDFIUM=OFF`.
+PDFium (optional): not in Alpine repos; provide a prebuilt <tt>libpdfium</tt> and pass
+<tt>-DENABLE_PDFIUM=ON -DPDFIUM_INCLUDE_DIR=... -DPDFIUM_LIBRARY=...</tt>,
+or use <tt>-DENABLE_PDFIUM=OFF</tt>.
 
 \subsection packages_fedora Fedora
 
