@@ -290,6 +290,8 @@ module PdfDataProvider {
 
     @section pdfdataproviderintro PdfDataProvider Module Introduction
 
+    <img src="pdf-logo.svg" width="96" alt="PdfDataProvider module logo"/>
+
     @anchor pdfdpintro
 
     The PdfDataProvider module exposes PDF document creation, editing, and rendering
