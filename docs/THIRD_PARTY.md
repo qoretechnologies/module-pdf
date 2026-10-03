@@ -15,3 +15,10 @@ the module's tests with `qore -penable-debug` and valgrind (`qore -b`).
 The bundled PoDoFo encryption context also uses the same opaque OpenSSL type
 in library and client translation units. This removes a One Definition Rule
 violation reported by LTO when statically linking the private library.
+
+The content reader returns an owning `shared_ptr<const PdfXObject>` through the
+standard conversion from its mutable pointer. The original reference cast
+violated strict aliasing and could invalidate a caller's view when the reader
+advanced. `pdf-content-xobject-test` covers both form traversal modes, retained
+ownership across reader advancement, final release and invalid access. An unused
+parser declaration is also removed.

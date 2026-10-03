@@ -1,0 +1,25 @@
+# Copyright (C) 2026 Qore Technologies, s.r.o.
+# SPDX-License-Identifier: LGPL-2.1-or-later
+set(manifest "@CMAKE_CURRENT_BINARY_DIR@/install_manifest.txt")
+if(NOT EXISTS "${manifest}")
+    message(FATAL_ERROR "Cannot find install manifest: ${manifest}")
+endif()
+file(STRINGS "${manifest}" installed_files)
+# Validate every entry before removing files. DESTDIR permits staged uninstall
+# checks without touching the host installation; no shell interprets filenames.
+foreach(installed_file IN LISTS installed_files)
+    if(NOT IS_ABSOLUTE "${installed_file}")
+        message(FATAL_ERROR "Refusing relative install path: ${installed_file}")
+    endif()
+    set(target "$ENV{DESTDIR}${installed_file}")
+    if(IS_DIRECTORY "${target}" AND NOT IS_SYMLINK "${target}")
+        message(FATAL_ERROR "Refusing directory in install manifest: ${target}")
+    endif()
+endforeach()
+foreach(installed_file IN LISTS installed_files)
+    set(target "$ENV{DESTDIR}${installed_file}")
+    file(REMOVE "${target}")
+    if(EXISTS "${target}" OR IS_SYMLINK "${target}")
+        message(FATAL_ERROR "Cannot remove installed file: ${target}")
+    endif()
+endforeach()

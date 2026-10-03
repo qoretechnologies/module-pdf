@@ -104,13 +104,16 @@ endif()
 
 message("Will install libraries to ${CMAKE_INSTALL_FULL_LIBDIR}")
 
-# Linux packagers want an uninstall target.
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-    IMMEDIATE @ONLY)
-add_custom_target(uninstall "${CMAKE_COMMAND}"
-    -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+# Copyright 2026 Qore Technologies, s.r.o. (subproject target ownership).
+# A parent project owns its installation manifest and uninstall target.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+        IMMEDIATE @ONLY)
+    add_custom_target(uninstall "${CMAKE_COMMAND}"
+        -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+endif()
 
 if(NOT DEFINED PLATFORM_SYSTEM_LIBRARIES)
     set(PLATFORM_SYSTEM_LIBRARIES)

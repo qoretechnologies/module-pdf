@@ -223,7 +223,8 @@ BinaryNode* QorePdfDocument::toData(ExceptionSink* xsink) {
         QPDFWriter writer(*qpdf);
         writer.setOutputMemory();
         writer.write();
-        Buffer* buf = writer.getBuffer();
+        // QPDF transfers ownership of its output buffer to the caller.
+        auto buf = writer.getBufferSharedPointer();
         SimpleRefHolder<BinaryNode> result(new BinaryNode);
         result->append(buf->getBuffer(), buf->getSize());
         return result.release();
@@ -379,17 +380,17 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
 
 QoreListNode* QorePdfDocument::split(const std::string& input, const std::string& output_dir,
         const std::string& prefix, ExceptionSink* xsink) {
-    QoreListNode* outputs = new QoreListNode();
+    ReferenceHolder<QoreListNode> outputs(new QoreListNode(stringTypeInfo), xsink);
 
     QoreSandboxManagerHelper smh;
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
-        return outputs;
+        return nullptr;
     }
     if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
-        return outputs;
+        return nullptr;
     }
     if (qore_check_cancel(xsink, "PDF document split")) {
-        return outputs;
+        return nullptr;
     }
 
     try {
@@ -401,7 +402,7 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
 
         for (size_t i = 0; i < pages.size(); ++i) {
             if (qore_check_cancel(xsink, "PDF document split")) {
-                return outputs;
+                return nullptr;
             }
             QPDF out_qpdf;
             out_qpdf.emptyPDF();
@@ -415,12 +416,15 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
             writer.write();
 
             outputs->push(new QoreStringNode(out_path.c_str()), xsink);
+            if (*xsink) {
+                return nullptr;
+            }
         }
 
-        return outputs;
+        return outputs.release();
     } catch (const std::exception& e) {
         pdf_error(xsink, e.what());
-        return outputs;
+        return nullptr;
     }
 }
 

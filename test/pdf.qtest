@@ -58,6 +58,8 @@ public class PdfTest inherits QUnit::Test {
         addTestCase("Corrupt PDF tests", \corruptPdfTest());
         addTestCase("Warnings capture tests", \warningsTest());
         addTestCase("Named argument tests", \namedArgumentTest());
+        addTestCase("Memory serialization ownership", \memorySerializationTest());
+        addTestCase("Split failure ownership", \splitFailureOwnershipTest());
 
         set_return_value(main());
     }
@@ -158,16 +160,31 @@ public class PdfTest inherits QUnit::Test {
         }
     }
 
+    memorySerializationTest() {
+        string path = testDir + "/memory_serialization.pdf";
+        createPdf(path, "Repeated serialization");
+        binary snapshot;
+        {
+            PdfDocument doc(path);
+            for (int i = 0; i < 32; ++i) {
+                string title = sprintf("Revision %d", i);
+                doc.setMetadata(<PdfMetadata>{"title": title});
+                snapshot = doc.toData();
+                assertTrue(snapshot.size() > 0, "serialization returns PDF bytes");
+                PdfDocument roundtrip(snapshot);
+                assertEq(1, roundtrip.pageCount(), "serialized pages survive buffer release");
+                assertEq(title, roundtrip.metadata().title, "each serialization captures current metadata");
+            }
+        }
+        PdfDocument retained(snapshot);
+        assertEq("Revision 31", retained.metadata().title,
+            "serialized bytes outlive the source document and writer");
+        assertEq(1, retained.pageCount(), "retained bytes contain the original page");
+    }
+
     rendererTest() {
         if (!PdfRenderer::isAvailable()) {
-            bool thrown = False;
-            try {
-                PdfRenderer::renderPage(basePdf, 0, 150);
-            } catch (hash<ExceptionInfo> ex) {
-                thrown = True;
-                assertEq("PDF-ERROR", ex.err, "renderPage errors when PDFium missing");
-            }
-            assertTrue(thrown, "renderPage throws when PDFium missing");
+            assertThrows("PDF-ERROR", \PdfRenderer::renderPage(), (basePdf, 0, 150));
             return;
         }
 
@@ -261,6 +278,40 @@ public class PdfTest inherits QUnit::Test {
             assertEq("PDF-ERROR", ex.err, "merge empty list throws PDF-ERROR");
         }
         assertTrue(thrown, "merge empty list throws");
+    }
+
+    splitFailureOwnershipTest() {
+        string input = testDir + "/split_ownership.pdf";
+        createPdf(input, "Split ownership");
+        string missing = testDir + "/absent/input.pdf";
+        string missingOutput = testDir + "/absent/output";
+        for (int i = 0; i < 16; ++i) {
+            assertThrows("PDF-ERROR", list<string> sub () {
+                return PdfDocument::split(missing, testDir);
+            });
+            assertThrows("PDF-ERROR", list<string> sub () {
+                return PdfDocument::split(input, missingOutput);
+            });
+        }
+
+        # Fail after the first output path has been stored in the result list.
+        string twoPages = testDir + "/split_ownership_two.pdf";
+        PdfDocument merged = PdfDocument::merge((input, input));
+        merged.save(twoPages);
+        string outputDir = testDir + "/split_ownership";
+        mkdir(outputDir);
+        mkdir(outputDir + "/part_2.pdf");
+        assertThrows("PDF-ERROR", list<string> sub () {
+            return PdfDocument::split(twoPages, outputDir, "part_");
+        });
+        assertTrue(is_file(outputDir + "/part_1.pdf"), "first page was written before failure");
+        assertTrue(is_dir(outputDir + "/part_2.pdf"), "conflicting directory remains intact");
+        list<string> recovered = PdfDocument::split(twoPages, outputDir, "recovered_");
+        assertEq(2, recovered.size(), "a successful split still returns both paths after errors");
+        foreach string path in (recovered) {
+            PdfDocument page(path);
+            assertEq(1, page.pageCount(), "each recovered output contains one page");
+        }
     }
 
     cornerCaseTest() {
@@ -488,23 +539,13 @@ public class PdfTest inherits QUnit::Test {
 
         # Test 7: Renderer with corrupt PDF (if PDFium available)
         if (PdfRenderer::isAvailable()) {
-            thrown = False;
-            try {
-                PdfRenderer::renderPage(garbagePdf, 0, 72);
-            } catch (hash<ExceptionInfo> ex) {
-                thrown = True;
-                assertEq("PDF-ERROR", ex.err, "render corrupt file throws PDF-ERROR");
-            }
-            assertTrue(thrown, "render corrupt file throws");
+            assertThrows("PDF-ERROR", hash<PdfRenderResult> sub () {
+                return PdfRenderer::renderPage(garbagePdf, 0, 72);
+            });
 
-            thrown = False;
-            try {
-                PdfRenderer::extractText(garbagePdf, 0);
-            } catch (hash<ExceptionInfo> ex) {
-                thrown = True;
-                assertEq("PDF-ERROR", ex.err, "extract text from corrupt file throws PDF-ERROR");
-            }
-            assertTrue(thrown, "extract text from corrupt file throws");
+            assertThrows("PDF-ERROR", string sub () {
+                return PdfRenderer::extractText(garbagePdf, 0);
+            });
         }
     }
 
@@ -695,14 +736,9 @@ public class PdfTest inherits QUnit::Test {
         assertEq(2, editedFromData.pageCount(), "PdfEditor data constructor accepts named data");
 
         if (!PdfRenderer::isAvailable()) {
-            bool thrown = False;
-            try {
-                PdfRenderer::renderPage(dpi: 72, page_index: 0, path: namedPdf);
-            } catch (hash<ExceptionInfo> ex) {
-                thrown = True;
-                assertEq("PDF-ERROR", ex.err, "renderPage with named args reports PDF-ERROR when unavailable");
-            }
-            assertTrue(thrown, "renderPage with named args throws when PDFium is missing");
+            assertThrows("PDF-ERROR", hash<PdfRenderResult> sub () {
+                return PdfRenderer::renderPage(dpi: 72, page_index: 0, path: namedPdf);
+            });
             return;
         }
 

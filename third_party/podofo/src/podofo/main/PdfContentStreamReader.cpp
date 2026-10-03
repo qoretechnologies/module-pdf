@@ -1,5 +1,6 @@
 /**
  * SPDX-FileCopyrightText: (C) 2022 Francesco Pretto <ceztko@gmail.com>
+ * SPDX-FileCopyrightText: (C) 2026 Qore Technologies, s.r.o.
  * SPDX-License-Identifier: LGPL-2.0-or-later
  * SPDX-License-Identifier: MPL-2.0
  */
@@ -533,18 +534,21 @@ const charbuff& PdfContent::GetInlineImageData() const
     return Data.InlineImageData;
 }
 
-const shared_ptr<const PdfXObject>& PdfContent::GetXObject() const
+shared_ptr<const PdfXObject> PdfContent::GetXObject() const
 {
-    if (!(Type == PdfContentType::DoXObject || Type == PdfContentType::BeginFormXObject))
+    if (!(Type == PdfContentType::DoXObject || Type == PdfContentType::BeginFormXObject)) {
         PODOFO_RAISE_ERROR_INFO(PdfErrorCode::InvalidDataType, "Invalid access for this content");
+    }
 
-    if (Errors != PdfContentErrors::None)
+    if (Errors != PdfContentErrors::None) {
         PODOFO_RAISE_ERROR_INFO(PdfErrorCode::InvalidContentStream, "Errors present while accessing this content");
+    }
 
-    if (Warnings != PdfContentWarnings::None && ThrowOnWarnings)
+    if (Warnings != PdfContentWarnings::None && ThrowOnWarnings) {
         PODOFO_RAISE_ERROR_INFO(PdfErrorCode::InvalidContentStream, "Warnings present while accessing this content");
+    }
 
-    return reinterpret_cast<const shared_ptr<const PdfXObject>&>(Data.XObject);
+    return Data.XObject;
 }
 
 void PdfContent::checkAccess(PdfContentType type) const

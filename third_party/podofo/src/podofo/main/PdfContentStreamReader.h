@@ -1,5 +1,6 @@
 /**
  * SPDX-FileCopyrightText: (C) 2022 Francesco Pretto <ceztko@gmail.com>
+ * SPDX-FileCopyrightText: (C) 2026 Qore Technologies, s.r.o.
  * SPDX-License-Identifier: LGPL-2.0-or-later
  * SPDX-License-Identifier: MPL-2.0
  */
@@ -70,7 +71,8 @@ public:
     const std::string_view& GetKeyword() const;
     const PdfDictionary& GetInlineImageDictionary() const;
     const charbuff& GetInlineImageData() const;
-    const std::shared_ptr<const PdfXObject>& GetXObject() const;
+    // Return an owning const view that remains valid when the reader advances.
+    std::shared_ptr<const PdfXObject> GetXObject() const;
 
     bool HasWarnings() const;
     bool HasErrors() const;

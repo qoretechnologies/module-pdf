@@ -1,4 +1,9 @@
+# Copyright (C) 2026 Qore Technologies, s.r.o.
+# SPDX-License-Identifier: MIT
 cmake_minimum_required(VERSION 3.23)
+if (POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
+endif()
 
 project(qore-pdf-module)
 
@@ -53,6 +58,15 @@ if (USE_BUNDLED_PODOFO)
         add_subdirectory("${PODOFO_BUNDLED_DIR}" third_party/podofo EXCLUDE_FROM_ALL)
     endfunction()
     qore_build_private_podofo()
+    add_executable(pdf-content-xobject-test EXCLUDE_FROM_ALL test/native/content-xobject.cpp)
+    target_link_libraries(pdf-content-xobject-test PRIVATE podofo::podofo)
+    target_compile_definitions(pdf-content-xobject-test PRIVATE PODOFO_STATIC)
+    target_compile_features(pdf-content-xobject-test PRIVATE cxx_std_17)
+    if (MSVC)
+        target_compile_options(pdf-content-xobject-test PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(pdf-content-xobject-test PRIVATE -UNDEBUG)
+    endif()
     set(PODOFO_INCLUDE_DIRS
         "${PODOFO_BUNDLED_DIR}/src"
         "${CMAKE_CURRENT_BINARY_DIR}/third_party/podofo/src/podofo/podofo/auxiliary"
@@ -129,6 +143,8 @@ set(QORE_DOX_TMPL_SRC
 )
 
 add_library(${module_name} MODULE ${CPP_SRC} ${QPP_SOURCES})
+# The module already uses std::shared_ptr; reject qpdf's legacy PointerHolder API.
+target_compile_definitions(${module_name} PRIVATE POINTERHOLDER_TRANSITION=4)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${QPDF_INCLUDE_DIRS})

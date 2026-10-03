@@ -1,6 +1,7 @@
 /**
  * SPDX-FileCopyrightText: (C) 2005 Dominik Seichter <domseichter@web.de>
  * SPDX-FileCopyrightText: (C) 2020 Francesco Pretto <ceztko@gmail.com>
+ * SPDX-FileCopyrightText: (C) 2026 Qore Technologies, s.r.o.
  * SPDX-License-Identifier: LGPL-2.0-or-later
  */
 
@@ -32,7 +33,6 @@ using namespace chromium::base;
 static bool CheckEOL(char e1, char e2);
 static bool CheckXRefEntryType(char c);
 static bool readMagicWord(char ch, unsigned& cursoridx);
-static bool isObjectStream(const PdfObject& obj);
 static bool tryGetCharBackward(InputStreamDevice& device, char& ch,
     size_t& pos, charbuff& buff, unsigned short& buffSize);
 
