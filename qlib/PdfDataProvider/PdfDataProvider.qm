@@ -288,7 +288,9 @@ module PdfDataProvider {
 
     @tableofcontents
 
-    @section pdfdpintro PDF DataProvider Introduction
+    @section pdfdataproviderintro PdfDataProvider Module Introduction
+
+    @anchor pdfdpintro
 
     The PdfDataProvider module exposes PDF document creation, editing, and rendering
     operations through the Qore DataProvider API.
