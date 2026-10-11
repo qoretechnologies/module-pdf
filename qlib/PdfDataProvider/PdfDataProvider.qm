@@ -57,6 +57,7 @@ module PdfDataProvider {
         # Register actions
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/create",
             "action": "create-document",
             "display_name": "Create Document",
@@ -67,6 +68,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/info",
             "action": "get-document-info",
             "display_name": "Get Document Info",
@@ -77,6 +79,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/metadata",
             "action": "set-document-metadata",
             "display_name": "Set Document Metadata",
@@ -87,6 +90,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/merge",
             "action": "merge-documents",
             "display_name": "Merge Documents",
@@ -97,6 +101,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/split",
             "action": "split-document",
             "display_name": "Split Document",
@@ -107,6 +112,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/rotate",
             "action": "rotate-pages",
             "display_name": "Rotate Pages",
@@ -117,6 +123,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/add-image",
             "action": "add-image",
             "display_name": "Add Image",
@@ -127,6 +134,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/add-text",
             "action": "add-text",
             "display_name": "Add Text",
@@ -137,6 +145,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/add-watermark",
             "action": "add-watermark",
             "display_name": "Add Watermark",
@@ -147,6 +156,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/add-signature-field",
             "action": "add-signature-field",
             "display_name": "Add Signature Field",
@@ -158,6 +168,7 @@ module PdfDataProvider {
         # Form field actions
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/list-form-fields",
             "action": "list-form-fields",
             "display_name": "List Form Fields",
@@ -168,6 +179,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/get-form-data",
             "action": "get-form-data",
             "display_name": "Get Form Data",
@@ -178,6 +190,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/fill-form",
             "action": "fill-form",
             "display_name": "Fill Form",
@@ -188,6 +201,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/create-form-field",
             "action": "create-form-field",
             "display_name": "Create Form Field",
@@ -199,6 +213,7 @@ module PdfDataProvider {
         # Encryption actions
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/encrypt",
             "action": "encrypt",
             "display_name": "Encrypt PDF",
@@ -209,6 +224,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/decrypt",
             "action": "decrypt",
             "display_name": "Decrypt PDF",
@@ -219,6 +235,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/get-encryption-info",
             "action": "get-encryption-info",
             "display_name": "Get Encryption Info",
@@ -230,6 +247,7 @@ module PdfDataProvider {
         # Digital signature actions
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/create-signature-field",
             "action": "create-digital-signature-field",
             "display_name": "Create Signature Field",
@@ -251,6 +269,7 @@ module PdfDataProvider {
 
         DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
             "app": PdfDataProvider::AppName,
+            "cls": "PdfDataProvider::PdfDataProvider",
             "path": "/document/list-signatures",
             "action": "list-signatures",
             "display_name": "List Signatures",
@@ -263,6 +282,7 @@ module PdfDataProvider {
         if (PdfRenderer::isAvailable()) {
             DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
                 "app": PdfDataProvider::AppName,
+                "cls": "PdfDataProvider::PdfDataProvider",
                 "path": "/render/page",
                 "action": "render-page",
                 "display_name": "Render Page",
@@ -273,6 +293,7 @@ module PdfDataProvider {
 
             DataProviderActionCatalog::registerAction(<DataProviderActionInfo>{
                 "app": PdfDataProvider::AppName,
+                "cls": "PdfDataProvider::PdfDataProvider",
                 "path": "/render/extract-text",
                 "action": "extract-text",
                 "display_name": "Extract Text",
