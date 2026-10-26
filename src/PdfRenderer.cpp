@@ -284,7 +284,7 @@ QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_inde
         return nullptr;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
@@ -349,7 +349,7 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
         return nullptr;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }

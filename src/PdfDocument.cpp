@@ -44,7 +44,7 @@ QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
 
 QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd, ExceptionSink* xsink)
         : password(pwd) {
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
     }
@@ -193,7 +193,7 @@ void QorePdfDocument::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }
@@ -279,7 +279,7 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         return nullptr;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
 
     try {
         auto out_qpdf = std::make_unique<QPDF>();
@@ -333,7 +333,7 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         return nullptr;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     warnings = new QoreListNode();
 
     try {
@@ -382,7 +382,7 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         const std::string& prefix, ExceptionSink* xsink) {
     ReferenceHolder<QoreListNode> outputs(new QoreListNode(stringTypeInfo), xsink);
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
@@ -433,7 +433,7 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
     QoreListNode* outputs = new QoreListNode();
     warnings = new QoreListNode();
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return outputs;
     }

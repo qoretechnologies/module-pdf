@@ -91,7 +91,7 @@ static bool parseHexColor(const std::string& hex, double& r, double& g, double& 
 
 QorePdfEditor::QorePdfEditor(const std::string& path, const std::string& password,
                              ExceptionSink* xsink) {
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
     }
@@ -421,7 +421,7 @@ void QorePdfEditor::drawImage(int pageIndex, const std::string& imagePath,
         return;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(imagePath.c_str(), QSEC_READ, xsink)) {
         return;
     }
@@ -693,7 +693,7 @@ void QorePdfEditor::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }
@@ -750,7 +750,7 @@ void QorePdfEditor::setFontOptions(const QoreHashNode* opts, ExceptionSink* xsin
 }
 
 QoreHashNode* QorePdfEditor::getImageDimensions(const std::string& path, ExceptionSink* xsink) {
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
@@ -1529,7 +1529,7 @@ bool QorePdfEditor::isEncrypted() const {
 
 QoreHashNode* QorePdfEditor::getEncryptionInfo(const std::string& path, const std::string& password,
                                                 ExceptionSink* xsink) {
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }

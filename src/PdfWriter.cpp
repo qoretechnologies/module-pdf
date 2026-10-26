@@ -167,7 +167,7 @@ void QorePdfWriter::setFontOptions(const QoreHashNode* opts, ExceptionSink* xsin
 }
 
 void QorePdfWriter::save(const std::string& path, ExceptionSink* xsink) {
-    QoreSandboxManagerHelper smh;
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
     }

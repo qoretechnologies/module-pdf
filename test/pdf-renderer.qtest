@@ -46,6 +46,7 @@ class PdfRendererTest inherits QUnit::Test {
         addTestCase("Integer and bitmap bounds", \bounds());
         addTestCase("Concurrent rendering and extraction", \concurrent());
         addTestCase("Memory operations honor interrupts", \interrupt());
+        addTestCase("File operations follow the system policy in a capability", \capability());
         set_return_value(main());
     }
 
@@ -167,5 +168,43 @@ class PdfRendererTest inherits QUnit::Test {
         assertThrows("PROGRAM-INTERRUPTED", \program.callFunction(), ("extractPageText", data));
         # An interrupted call must release the library lock for subsequent users.
         assertTrue(PdfRenderer::extractTextFromData(data, 0).find("Invoice 2026: paid") >= 0);
+    }
+
+    #! A capability called from a sandbox that denies the filesystem reads and writes files with the system policy
+    capability() {
+        SandboxManager sm();
+        sm.setFilesystemDefaultPolicy(False);
+        Program program(PO_NO_CHILD_PO_RESTRICTIONS);
+        program.setSandboxManager(sm);
+        program.parse("%modern\nauto sub through(code c) { return c(); }\n", "pdf_capability");
+
+        string copy = tmp.path + "/copy.pdf";
+        code document = int sub () {
+            PdfDocument doc(path);
+            return doc.pageCount();
+        };
+        code write = sub () {
+            PdfWriter writer();
+            writer.addTextPage("written in a capability");
+            writer.save(copy);
+        };
+        # the same code called directly from the sandbox inherits the sandbox's policy
+        assertThrows("FILESYSTEM-ACCESS-DENIED", \program.callFunction(), ("through", document),
+            "PdfDocument() of a file called directly from the sandbox is denied");
+        assertThrows("FILESYSTEM-ACCESS-DENIED", \program.callFunction(), ("through", write),
+            "PdfWriter::save() called directly from the sandbox is denied");
+        assertFalse(is_file(copy), "the denied save writes nothing");
+        # a system-policy capability called from the sandbox is subject to the system policy, not the sandbox's
+        assertEq(1, program.callFunction("through", SandboxManager::createSystemPolicyCall(document)),
+            "PdfDocument() of a file runs in a system-policy capability");
+        program.callFunction("through", SandboxManager::createSystemPolicyCall(write));
+        assertTrue(is_file(copy), "PdfWriter::save() runs in a system-policy capability");
+        if (PdfRenderer::isAvailable()) {
+            code extractor = string sub () { return PdfRenderer::extractText(path, 0); };
+            assertThrows("FILESYSTEM-ACCESS-DENIED", \program.callFunction(), ("through", extractor),
+                "PdfRenderer::extractText() called directly from the sandbox is denied");
+            assertRegex("Invoice 2026: paid", program.callFunction("through",
+                SandboxManager::createSystemPolicyCall(extractor)), "PdfRenderer::extractText() runs in a capability");
+        }
     }
 }
