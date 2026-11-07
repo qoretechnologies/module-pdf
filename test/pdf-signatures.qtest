@@ -224,8 +224,8 @@ public class PdfSignaturesTest inherits QUnit::Test {
         }
         assertTrue(thrown, "missing field throws");
 
-        # Test data provider with missing field name: the request type accepts a field spec without a name, so the
-        # provider refuses the request; a RUNTIME-TYPE-ERROR here would be a defect, not a refused request
+        # Test data provider with missing field name: the request type refuses a field spec without a name, as no
+        # signature field can be created without one
         thrown = False;
         try {
             dp.doRequest({
@@ -241,10 +241,22 @@ public class PdfSignaturesTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            assertEq("PDF-ERROR", ex.err, "missing field name throws PDF-ERROR");
-            assertEq("field.name is required", ex.desc);
+            assertEq("TYPE-VALUE-ERROR", ex.err, "missing field name is refused by the request type");
+            assertRegex("required field \"name\" is absent", ex.desc);
         }
         assertTrue(thrown, "missing field name throws");
+
+        # the field type itself requires the name and the page
+        PdfDigitalSignatureFieldSpecDataType field_type();
+        assertThrows("MISSING-VALUE-ERROR", "required field \"name\" is absent", \field_type.acceptsValue(),
+            ({"page": 0, "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0},));
+        assertThrows("MISSING-VALUE-ERROR", "required field \"page\" is absent", \field_type.acceptsValue(),
+            ({"name": "Sig", "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0},));
+        assertEq("Sig", field_type.acceptsValue({"name": "Sig", "page": 0, "x": 1.0, "y": 1.0, "width": 1.0,
+            "height": 1.0}).name);
+        PdfCreateDigitalSignatureFieldRequestDataType request_type();
+        assertThrows("TYPE-VALUE-ERROR", "required field \"name\" is absent", \request_type.acceptsValue(),
+            ({"input_path": basePdf, "field": {"page": 0, "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0}},));
 
         # Test list-signatures with missing input_path
         PdfListSignaturesDataProvider dp2();
