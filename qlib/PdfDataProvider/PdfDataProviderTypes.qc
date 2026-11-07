@@ -2160,7 +2160,8 @@ public class PdfGetEncryptionInfoRequestDataType inherits HashDataType {
 #! Digital signature field specification type: the field's name and page are required
 /** The type of the \c field of a request to create a digital signature field; a field specification without a
     \c name or \c page is refused by the type with \c MISSING-VALUE-ERROR, as no signature field can be created
-    without them
+    without them; an omitted \c x, \c y, \c width or \c height is \c 0.0, as with
+    @ref PdfDataProvider::PdfDigitalSignatureFieldSpec "PdfDigitalSignatureFieldSpec"
 */
 public class PdfDigitalSignatureFieldSpecDataType inherits HashDataType {
     public {
@@ -2184,25 +2185,29 @@ public class PdfDigitalSignatureFieldSpecDataType inherits HashDataType {
                 "type": FloatType,
                 "display_name": "X",
                 "short_desc": "X coordinate",
-                "desc": "The X coordinate of the field",
+                "desc": "The X coordinate of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
             },
             "y": {
                 "type": FloatType,
                 "display_name": "Y",
                 "short_desc": "Y coordinate",
-                "desc": "The Y coordinate of the field",
+                "desc": "The Y coordinate of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
             },
             "width": {
                 "type": FloatType,
                 "display_name": "Width",
                 "short_desc": "Field width",
-                "desc": "The width of the field",
+                "desc": "The width of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
             },
             "height": {
                 "type": FloatType,
                 "display_name": "Height",
                 "short_desc": "Field height",
-                "desc": "The height of the field",
+                "desc": "The height of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
             },
             "signer_name": {
                 "type": StringOrNothingType,

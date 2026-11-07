@@ -254,9 +254,17 @@ public class PdfSignaturesTest inherits QUnit::Test {
             ({"name": "Sig", "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0},));
         assertEq("Sig", field_type.acceptsValue({"name": "Sig", "page": 0, "x": 1.0, "y": 1.0, "width": 1.0,
             "height": 1.0}).name);
+        # omitted geometry is 0.0, as in the PdfDigitalSignatureFieldSpec hashdecl
+        hash<auto> field_value = field_type.acceptsValue({"name": "Sig", "page": 0});
+        assertEq(0.0, field_value.x);
+        assertEq(0.0, field_value.y);
+        assertEq(0.0, field_value.width);
+        assertEq(0.0, field_value.height);
+        assertEq(2.5, field_type.acceptsValue({"name": "Sig", "page": 0, "x": 2.5}).x);
         PdfCreateDigitalSignatureFieldRequestDataType request_type();
         assertThrows("TYPE-VALUE-ERROR", "required field \"name\" is absent", \request_type.acceptsValue(),
             ({"input_path": basePdf, "field": {"page": 0, "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0}},));
+        assertEq(0.0, request_type.acceptsValue({"input_path": basePdf, "field": {"name": "Sig", "page": 0}}).field.y);
 
         # Test list-signatures with missing input_path
         PdfListSignaturesDataProvider dp2();
