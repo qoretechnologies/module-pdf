@@ -224,8 +224,8 @@ public class PdfSignaturesTest inherits QUnit::Test {
         }
         assertTrue(thrown, "missing field throws");
 
-        # Test data provider with missing field name
-        # Type system catches missing required 'name' field in PdfDigitalSignatureFieldSpec
+        # Test data provider with missing field name: the request type accepts a field spec without a name, so the
+        # provider refuses the request; a RUNTIME-TYPE-ERROR here would be a defect, not a refused request
         thrown = False;
         try {
             dp.doRequest({
@@ -241,9 +241,8 @@ public class PdfSignaturesTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            # Can be RUNTIME-TYPE-ERROR (type validation) or PDF-ERROR (manual validation)
-            assertTrue(ex.err == "PDF-ERROR" || ex.err == "RUNTIME-TYPE-ERROR",
-                "missing field name throws error");
+            assertEq("PDF-ERROR", ex.err, "missing field name throws PDF-ERROR");
+            assertEq("field.name is required", ex.desc);
         }
         assertTrue(thrown, "missing field name throws");
 
