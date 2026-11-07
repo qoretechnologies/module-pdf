@@ -29,8 +29,10 @@ tree-already-tested:
     GIT_DEPTH: "3"
     # the tree check needs no submodules
     GIT_SUBMODULE_STRATEGY: none
+  # only a push (a merge) reuses a passed tree: a pipeline started manually, by a schedule or by a trigger tests the
+  # tree again, as the test images (mutable develop tags) may have changed since it passed
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "push"
   script:
     - sh test/docker_test/tree-already-tested.sh
   artifacts:
