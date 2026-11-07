@@ -2157,6 +2157,85 @@ public class PdfGetEncryptionInfoRequestDataType inherits HashDataType {
     }
 }
 
+#! Digital signature field specification type: the field's name and page are required
+/** The type of the \c field of a request to create a digital signature field; a field specification without a
+    \c name or \c page is refused by the type with \c MISSING-VALUE-ERROR, as no signature field can be created
+    without them; an omitted \c x, \c y, \c width or \c height is \c 0.0, as with
+    @ref PdfDataProvider::PdfDigitalSignatureFieldSpec "PdfDigitalSignatureFieldSpec"
+*/
+public class PdfDigitalSignatureFieldSpecDataType inherits HashDataType {
+    public {
+        #! The fields of a signature field specification
+        const Fields = {
+            "name": {
+                "type": StringType,
+                "display_name": "Name",
+                "short_desc": "Signature field name",
+                "desc": "The name of the signature field",
+                "example_value": "Signature1",
+            },
+            "page": {
+                "type": IntType,
+                "display_name": "Page",
+                "short_desc": "Zero-based page index",
+                "desc": "The zero-based index of the page that holds the field",
+                "example_value": 0,
+            },
+            "x": {
+                "type": FloatType,
+                "display_name": "X",
+                "short_desc": "X coordinate",
+                "desc": "The X coordinate of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
+            },
+            "y": {
+                "type": FloatType,
+                "display_name": "Y",
+                "short_desc": "Y coordinate",
+                "desc": "The Y coordinate of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
+            },
+            "width": {
+                "type": FloatType,
+                "display_name": "Width",
+                "short_desc": "Field width",
+                "desc": "The width of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
+            },
+            "height": {
+                "type": FloatType,
+                "display_name": "Height",
+                "short_desc": "Field height",
+                "desc": "The height of the field; 0.0 if omitted, as in the hashdecl",
+                "default_value": 0.0,
+            },
+            "signer_name": {
+                "type": StringOrNothingType,
+                "display_name": "Signer Name",
+                "short_desc": "Signer name",
+                "desc": "The name of the signer",
+            },
+            "reason": {
+                "type": StringOrNothingType,
+                "display_name": "Reason",
+                "short_desc": "Reason for signing",
+                "desc": "The reason for signing",
+            },
+            "location": {
+                "type": StringOrNothingType,
+                "display_name": "Location",
+                "short_desc": "Signing location",
+                "desc": "The location of signing",
+            },
+        };
+    }
+
+    #! Creates the type
+    constructor() : HashDataType("PdfDigitalSignatureFieldSpec") {
+        addQoreFields(Fields);
+    }
+}
+
 #! Create digital signature field request type with required input group
 public class PdfCreateDigitalSignatureFieldRequestDataType inherits HashDataType {
     constructor() {
@@ -2165,7 +2244,7 @@ public class PdfCreateDigitalSignatureFieldRequestDataType inherits HashDataType
         addQoreFields(PdfPasswordField);
         addQoreFields({
             "field": {
-                "type": new Type("hash<PdfDigitalSignatureFieldSpec>"),
+                "type": new PdfDigitalSignatureFieldSpecDataType(),
                 "display_name": "Field",
                 "short_desc": "Signature field specification",
                 "desc": "Digital signature field specification (name, page, position, etc.)",

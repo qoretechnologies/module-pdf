@@ -224,8 +224,8 @@ public class PdfSignaturesTest inherits QUnit::Test {
         }
         assertTrue(thrown, "missing field throws");
 
-        # Test data provider with missing field name
-        # Type system catches missing required 'name' field in PdfDigitalSignatureFieldSpec
+        # Test data provider with missing field name: the request type refuses a field spec without a name, as no
+        # signature field can be created without one
         thrown = False;
         try {
             dp.doRequest({
@@ -241,11 +241,30 @@ public class PdfSignaturesTest inherits QUnit::Test {
             });
         } catch (hash<ExceptionInfo> ex) {
             thrown = True;
-            # Can be RUNTIME-TYPE-ERROR (type validation) or PDF-ERROR (manual validation)
-            assertTrue(ex.err == "PDF-ERROR" || ex.err == "RUNTIME-TYPE-ERROR",
-                "missing field name throws error");
+            assertEq("TYPE-VALUE-ERROR", ex.err, "missing field name is refused by the request type");
+            assertRegex("required field \"name\" is absent", ex.desc);
         }
         assertTrue(thrown, "missing field name throws");
+
+        # the field type itself requires the name and the page
+        PdfDigitalSignatureFieldSpecDataType field_type();
+        assertThrows("MISSING-VALUE-ERROR", "required field \"name\" is absent", \field_type.acceptsValue(),
+            ({"page": 0, "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0},));
+        assertThrows("MISSING-VALUE-ERROR", "required field \"page\" is absent", \field_type.acceptsValue(),
+            ({"name": "Sig", "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0},));
+        assertEq("Sig", field_type.acceptsValue({"name": "Sig", "page": 0, "x": 1.0, "y": 1.0, "width": 1.0,
+            "height": 1.0}).name);
+        # omitted geometry is 0.0, as in the PdfDigitalSignatureFieldSpec hashdecl
+        hash<auto> field_value = field_type.acceptsValue({"name": "Sig", "page": 0});
+        assertEq(0.0, field_value.x);
+        assertEq(0.0, field_value.y);
+        assertEq(0.0, field_value.width);
+        assertEq(0.0, field_value.height);
+        assertEq(2.5, field_type.acceptsValue({"name": "Sig", "page": 0, "x": 2.5}).x);
+        PdfCreateDigitalSignatureFieldRequestDataType request_type();
+        assertThrows("TYPE-VALUE-ERROR", "required field \"name\" is absent", \request_type.acceptsValue(),
+            ({"input_path": basePdf, "field": {"page": 0, "x": 1.0, "y": 1.0, "width": 1.0, "height": 1.0}},));
+        assertEq(0.0, request_type.acceptsValue({"input_path": basePdf, "field": {"name": "Sig", "page": 0}}).field.y);
 
         # Test list-signatures with missing input_path
         PdfListSignaturesDataProvider dp2();
