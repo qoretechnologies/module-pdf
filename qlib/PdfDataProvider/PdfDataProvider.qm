@@ -350,6 +350,14 @@ module PdfDataProvider {
 
     @par API Example: Extract Text
     @verbatim qdp 'pdf{}/render/extract-text' input_path=doc.pdf,page_index=0 @endverbatim
+
+    @subpage pdfdataproviderreleasenotes
+*/
+
+/** @page pdfdataproviderreleasenotes PdfDataProvider Release Notes
+
+    @section pdfdataproviderv10 PdfDataProvider Module Version 1.0
+    - initial release
 */
 
 public namespace PdfDataProvider {
