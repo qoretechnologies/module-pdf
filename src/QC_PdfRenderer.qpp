@@ -58,7 +58,7 @@ hashdecl Qore::Pdf::PdfRenderResult {
     next cancellation check.
 
     @par Example
-    @code
+    @code{.py}
     string text = PdfRenderer::extractText("invoice.pdf", 0);
     hash<PdfRenderResult> preview = PdfRenderer::renderPage("invoice.pdf", 0, 72);
     @endcode
