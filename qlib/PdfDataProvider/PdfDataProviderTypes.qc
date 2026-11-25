@@ -1240,8 +1240,23 @@ public hashdecl PdfFillFormRequest {
     #! Field name to value mapping
     hash<auto> form_data;
 
+    #! Presence enables strict validation. Each named field must exist and receive a valid value before publication.
+    *list<string> required_fields;
+
     #! Convert fields to static content after filling
     *bool flatten;
+}
+
+#! The result for one mapped or required field during strict form filling
+public hashdecl PdfFormFieldOutcome {
+    #! Whether the caller requires this mapping to succeed
+    bool required;
+
+    #! One of filled, missing_field, missing_value, invalid_value, or write_failed
+    string status;
+
+    #! Description of a failed mapping
+    *string message;
 }
 
 #! Response type for filling form fields
@@ -1263,6 +1278,9 @@ public hashdecl PdfFillFormResponse {
 
     #! Output file size in bytes
     int size;
+
+    #! In strict mode, each mapped or required name has an outcome with status and required, and a message on failure
+    *hash<string, hash<PdfFormFieldOutcome>> field_outcomes;
 
     #! Warnings encountered
     *list<string> warnings;
@@ -2047,6 +2065,13 @@ public class PdfFillFormRequestDataType inherits HashDataType {
                 "display_name": "Form Data",
                 "short_desc": "Field name to value mapping",
                 "desc": "Hash mapping form field names to their values",
+            },
+            "required_fields": {
+                "type": new Type("*list<string>"),
+                "display_name": "Required fields",
+                "short_desc": "Validate these fields before publishing",
+                "desc": "Enables strict field validation. Each listed field must be present in the template and "
+                    "have a valid mapped value, including False for an unchecked checkbox.",
             },
             "flatten": {
                 "type": BoolOrNothingType,
