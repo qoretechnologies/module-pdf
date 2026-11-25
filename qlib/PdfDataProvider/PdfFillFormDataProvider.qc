@@ -36,6 +36,13 @@ public namespace PdfDataProvider {
     Optionally, fields can be "flattened" after filling, converting them to static content
     that cannot be edited.
 
+    Supply \c required_fields to request strict validation. Required text fields need a nonblank string and
+    checkboxes need a boolean. Choice fields accept a listed label or a zero-based index. Optional fields may
+    be omitted. A failed required mapping raises \c PDF-FORM-VALIDATION-ERROR before flattening or publishing.
+    Its exception argument contains \c field_outcomes keyed by field name, as does a successful strict response.
+    Outcomes have a \c required flag and a \c status of \c filled, \c missing_field, \c missing_value,
+    \c invalid_value or \c write_failed. Optional failures are also returned as warnings.
+
     @par Example:
     @code{.py}
     hash<auto> response = dp.doRequest(<PdfFillFormRequest>{
@@ -84,13 +91,89 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
         return AbstractDataProviderType::get(new Type("hash<PdfFillFormResponse>"));
     }
 
+    #! Normalize a strict mapping before calling the native editor, which otherwise coerces values
+    private static auto strictValue(hash<auto> field, auto value, bool required) {
+        if (field.read_only) {
+            throw "PDF-FORM-VALUE-ERROR", "the field is read-only";
+        }
+        switch (field.type) {
+            case "text":
+                if (value.typeCode() == NT_STRING && (!required || trim(value).size())
+                        && value.find(chr(0)) < 0 && (!field.max_length || value.length() <= field.max_length)) {
+                    return value;
+                }
+                throw "PDF-FORM-VALUE-ERROR", "expected text within the field length limit and nonblank if required";
+            case "checkbox":
+                if (value.typeCode() == NT_BOOLEAN) {
+                    return value;
+                }
+                throw "PDF-FORM-VALUE-ERROR", "expected a boolean";
+            case "combo":
+            case "list":
+                if (value.typeCode() == NT_INT && value >= 0 && value < field.options.size()) {
+                    return value;
+                }
+                if (value.typeCode() == NT_STRING) {
+                    foreach string option in (field.options) {
+                        if (option == value) {
+                            return $#;
+                        }
+                    }
+                }
+                throw "PDF-FORM-VALUE-ERROR", "expected a listed option or an index in range";
+            default:
+                throw "PDF-FORM-VALUE-ERROR", sprintf("cannot fill field type %s", field.type);
+        }
+    }
+
+    private static hash<string, hash<PdfFormFieldOutcome>> fillStrict(PdfEditor editor, hash<auto> values,
+            list<string> required_fields, reference<int> filled, reference<list<string>> warnings) {
+        hash<string, hash<auto>> fields = map {$1.name: $1}, editor.getFormFields();
+        hash<string, bool> required = map {$1: True}, required_fields;
+        hash<string, hash<PdfFormFieldOutcome>> outcomes;
+        list<string> failed;
+        foreach string name in ((keys values) + (keys (required - keys values))) {
+            bool mandatory = required{name} ?? False;
+            hash<PdfFormFieldOutcome> outcome();
+            outcome.required = mandatory;
+            if (!fields.hasKey(name)) {
+                outcome += {"status": "missing_field", "message": "field is absent from the template"};
+            } else if (!exists values{name}) {
+                outcome += {"status": "missing_value", "message": "field has no mapped value"};
+            } else {
+                try {
+                    auto value = strictValue(fields{name}, values{name}, mandatory);
+                    editor.setFormFieldValue(name, value);
+                    outcome.status = "filled";
+                    ++filled;
+                } catch (hash<ExceptionInfo> ex) {
+                    outcome.status = ex.err == "PDF-FORM-VALUE-ERROR" ? "invalid_value" : "write_failed";
+                    outcome.message = ex.desc;
+                }
+            }
+            outcomes{name} = outcome;
+            if (outcome.status != "filled") {
+                if (mandatory) {
+                    failed += name;
+                } else {
+                    warnings += sprintf("Failed to fill field '%s': %s", name, outcome.message);
+                }
+            }
+        }
+        if (failed) {
+            throw "PDF-FORM-VALIDATION-ERROR", "required fields could not be filled: " + failed.join(", "),
+                {"field_outcomes": outcomes};
+        }
+        return outcomes;
+    }
+
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
 
         PdfActionBase::validateOutputRequired(request);
 
         # Validate required fields
-        if (!request.form_data || request.form_data.size() == 0) {
+        if (!request.required_fields && (!request.form_data || !request.form_data.size())) {
             throw "PDF-ERROR", "form_data is required and must contain at least one field";
         }
 
@@ -102,17 +185,21 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
         list<string> warnings = ();
         int fields_filled = 0;
 
-        # Fill each field
-        HashIterator it(request.form_data);
-        while (it.next()) {
-            string field_name = it.getKey();
-            auto value = it.getValue();
-            try {
-                @debug("setting field: name=%y value=%y", field_name, value);
-                editor.setFormFieldValue(field_name, value);
-                fields_filled++;
-            } catch (hash<ExceptionInfo> ex) {
-                push warnings, sprintf("Failed to fill field '%s': %s", field_name, ex.desc);
+        *hash<string, hash<PdfFormFieldOutcome>> outcomes;
+        if (exists request.required_fields) {
+            outcomes = fillStrict(editor, request.form_data, request.required_fields, \fields_filled, \warnings);
+        } else {
+            HashIterator it(request.form_data);
+            while (it.next()) {
+                string field_name = it.getKey();
+                auto value = it.getValue();
+                try {
+                    @debug("setting field: name=%y value=%y", field_name, value);
+                    editor.setFormFieldValue(field_name, value);
+                    fields_filled++;
+                } catch (hash<ExceptionInfo> ex) {
+                    push warnings, sprintf("Failed to fill field '%s': %s", field_name, ex.desc);
+                }
             }
         }
 
@@ -128,6 +215,9 @@ public class PdfFillFormDataProvider inherits AbstractDataProvider {
         hash<PdfFillFormResponse> response();
         response.success = True;
         response += output;
+        if (exists outcomes) {
+            response.field_outcomes = outcomes;
+        }
         response.fields_filled = fields_filled;
         response.warnings = warnings ? warnings : NOTHING;
 

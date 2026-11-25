@@ -34,6 +34,7 @@
 %requires DataProvider
 %requires pdf
 %requires PdfDataProvider
+%requires FileLocationHandler
 
 %exec-class PdfDataProviderTest
 
@@ -58,6 +59,7 @@ public class PdfDataProviderTest inherits QUnit::Test {
         addTestCase("Render page action tests", \renderPageActionTest());
         addTestCase("Extract text action tests", \extractTextActionTest());
         addTestCase("Binary data input tests", \binaryDataInputTest());
+        addTestCase("Strict form filling", \strictFormTest());
         addTestCase("Location input tests", \locationInputTest());
         addTestCase("Output mode tests", \outputModeTest());
         addTestCase("Negative action tests", \negativeActionTest());
@@ -473,6 +475,75 @@ public class PdfDataProviderTest inherits QUnit::Test {
     }
 
     # ==================== Location Input Tests ====================
+
+    strictFormTest() {
+        string path = createPdf(testDir + "/strict-form.pdf", "form");
+        PdfEditor form(path);
+        form.createFormField("shipment", "text", 0, 10.0, 40.0, 100.0, 15.0);
+        form.createFormField("accepted", "checkbox", 0, 10.0, 20.0, 15.0, 15.0, {"checked": True});
+        binary template = form.saveToMemory();
+        AbstractDataProvider dp = getDocumentProvider("fill-form");
+        assertTrue(dp.getRequestType().getFields().hasKey("required_fields"));
+        hash<auto> req = {"data": template, "return_data": True, "required_fields": ("shipment", "accepted"),
+            "form_data": {"shipment": "S123", "accepted": False}};
+        hash<auto> result = dp.doRequest(req);
+        assertEq(2, result.fields_filled);
+        assertEq("filled", result.field_outcomes.accepted.status);
+        assertEq("S123", (new PdfEditor(result.data)).getFormFieldValue("shipment"));
+        assertEq(False, (new PdfEditor(result.data)).getFormFieldValue("accepted"));
+        hash<auto> empty = req;
+        empty.form_data = {};
+        assertThrows("PDF-FORM-VALIDATION-ERROR", \dp.doRequest(), empty);
+        PdfTestLocation source(template);
+        PdfTestLocation sink();
+        FileLocationHandler::registerHandler("pdfstricttemplate", source);
+        FileLocationHandler::registerHandler("pdfstrictresult", sink);
+        remove req.data;
+        req.location = "pdfstricttemplate://form";
+        req.output_location = "pdfstrictresult://result";
+        req.output_path = path;
+        req.flatten = True;
+        req.form_data = {"accepted": "false", "nonexistent": 1};
+        req.required_fields += "absent";
+        binary original = ReadOnlyFile::readBinaryFile(path);
+        *hash<auto> failure;
+        try {
+            result = dp.doRequest(req);
+        } catch (hash<ExceptionInfo> ex) {
+            assertEq("PDF-FORM-VALIDATION-ERROR", ex.err);
+            failure = ex.arg;
+        }
+        assertEq("missing_value", failure.field_outcomes.shipment.status);
+        assertEq("invalid_value", failure.field_outcomes.accepted.status);
+        assertEq("missing_field", failure.field_outcomes.absent.status);
+        assertEq("missing_field", failure.field_outcomes.nonexistent.status);
+        assertNothing(failure.data);
+        assertEq(0, sink.writes);
+        assertEq(original, ReadOnlyFile::readBinaryFile(path));
+        req.form_data = {"shipment": " ", "accepted": True};
+        assertThrows("PDF-FORM-VALIDATION-ERROR", \dp.doRequest(), req);
+        req.required_fields = ("shipment",);
+        req.flatten = False;
+        req.form_data = {"shipment": "S456", "unknown": 1};
+        result = dp.doRequest(req);
+        assertEq(1, result.fields_filled);
+        assertEq("missing_field", result.field_outcomes.unknown.status);
+        assertEq(1, result.warnings.size());
+        assertEq(1, sink.writes);
+        assertEq(0, source.writes);
+        assertEq("S456", (new PdfEditor(sink.contents)).getFormFieldValue("shipment"));
+        assertEq("S456", (new PdfEditor(path)).getFormFieldValue("shipment"));
+        assertEq(True, (new PdfEditor(path)).getFormFieldValue("accepted"), "omitted optional value is preserved");
+        remove req.output_path;
+        req.output_location = "pdfstrictresult://fail";
+        assertThrows("TEST-DESTINATION-ERROR", \dp.doRequest(), req);
+        remove req.required_fields;
+        remove req.output_location;
+        result = dp.doRequest(req);
+        assertEq(True, result.success);
+        assertEq(1, result.warnings.size());
+        assertNothing(result.field_outcomes);
+    }
 
     locationInputTest() {
         # Create a PDF file to use as location source
@@ -978,5 +1049,43 @@ public class PdfDataProviderTest inherits QUnit::Test {
                 "input_path": truncatedPdf,
             });
         });
+    }
+}
+
+# A registered template is read-only. The result handler records published bytes independently of the editor.
+class PdfTestLocation inherits AbstractFileLocationHandler {
+    public {
+        *binary contents;
+        int writes = 0;
+    }
+    private {
+        bool read_only;
+    }
+
+    constructor(*binary template) {
+        contents = template;
+        read_only = exists template;
+    }
+    private binary getBinaryFileImpl(string scheme, string location, *hash<auto> opts) { return contents; }
+    private writeFileImpl(string scheme, string location, data value, *hash<auto> opts) {
+        ++writes;
+        if (read_only || location == "fail") {
+            throw "TEST-DESTINATION-ERROR", location;
+        }
+        contents = value;
+    }
+    private hash<string, hash<FileHandlerOptionInfo>> getReadOptionsImpl() { return {}; }
+    private hash<string, hash<FileHandlerOptionInfo>> getWriteOptionsImpl() { return {}; }
+    private string getTextFileImpl(string scheme, string location, *hash<auto> opts) { throw "UNUSED", location; }
+    private Qore::AbstractPollOperation getIoPollerForLocationImpl(string scheme, string location,
+            *hash<auto> opts) { throw "UNUSED", location; }
+    private Qore::StreamReader getStreamReaderImpl(string scheme, string location, *hash<auto> opts) {
+        throw "UNUSED", location;
+    }
+    private Qore::InputStream getBinaryStreamImpl(string scheme, string location, *hash<auto> opts) {
+        throw "UNUSED", location;
+    }
+    private OutputStreamWrapper getOutputStreamImpl(string scheme, string location, *hash<auto> opts) {
+        throw "UNUSED", location;
     }
 }
