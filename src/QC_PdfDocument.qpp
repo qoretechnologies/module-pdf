@@ -203,6 +203,9 @@ static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [do
     @return list of output file paths
 
     @throw PDF-ERROR if the input cannot be read or output cannot be written
+    @throw FILESYSTEM-ACCESS-DENIED the file-system policy of a sandbox that governs the calling code does not allow
+    the input to be read, or an output file to be written; each output file is checked, as the prefix can name
+    another directory
 */
 static list<string> PdfDocument::split(string input_path, string output_dir, *string prefix = "page_")
         [dom=FILESYSTEM;flags=NAMED_ARGS] {

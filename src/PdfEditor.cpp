@@ -230,6 +230,32 @@ PoDoFo::PdfColor QorePdfEditor::parseColor(const QoreHashNode* colorHash, Except
     return PoDoFo::PdfColor(0.0, 0.0, 0.0); // Default black
 }
 
+int QorePdfEditor::checkFontPath(const QoreHashNode* fontSpec, ExceptionSink* xsink) {
+    if (!fontSpec) {
+        return 0;
+    }
+    QoreValue val = fontSpec->getKeyValue("font_path");
+    if (val.getType() != NT_STRING) {
+        return 0;
+    }
+    // the font file is a path that the calling code gives: it is refused if that code is restricted from the file
+    // system (the options of a module's own Program do not decide; module-pdf#8), and it is checked with the
+    // file-system policy of a sandbox that governs the code; both before the document is changed
+    if (qore_caller_restricts_domain(QDOM_FILESYSTEM)) {
+        xsink->raiseException("PERMISSION-DENIED", "the 'font_path' option cannot be used: the calling code is "
+            "restricted from the FILESYSTEM functional domain");
+        return -1;
+    }
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
+    if (smh) {
+        QoreStringValueHelper str(val);
+        if (!smh->checkFilesystemAccess(str->c_str(), QSEC_READ, xsink)) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 PoDoFo::PdfFont& QorePdfEditor::getFont(const QoreHashNode* fontSpec, ExceptionSink* xsink) {
     PoDoFo::PdfFontCreateParams params;
     if (!embed_fonts) {
@@ -479,6 +505,14 @@ void QorePdfEditor::drawText(int pageIndex, const std::string& text,
 
     if (text.empty()) {
         return; // Nothing to draw
+    }
+
+    // a font file that the caller gives is checked before the document is changed
+    if (style) {
+        QoreValue fontVal = style->getKeyValue("font");
+        if (fontVal.getType() == NT_HASH && checkFontPath(fontVal.get<const QoreHashNode>(), xsink)) {
+            return;
+        }
     }
 
     try {

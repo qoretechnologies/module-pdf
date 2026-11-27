@@ -69,6 +69,11 @@ public class PdfAddSignatureFieldDataProvider inherits AbstractDataProvider {
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
+        # the paths and locations in the request are the caller's input, also for the code that a host-created
+        # provider was lent to: refused before anything is read or written if that code is restricted (issue #8)
+        PdfActionBase::checkCallerPaths(request,
+            ("input_path", "output_path", "signature.image_path", "signature.label_font.font_path"),
+            ("location", "output_location"));
 
         PdfActionBase::validateOutputRequired(request);
 

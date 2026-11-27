@@ -161,6 +161,10 @@ hashdecl Qore::Pdf::PdfFontSpec {
     *float size;
 
     //! Path to custom TrueType/OpenType font file
+    /** The file is read for the calling code: if that code is restricted from the \c FILESYSTEM functional domain,
+        the text is refused with \c PERMISSION-DENIED, and the file-system policy of a sandbox that governs the code
+        applies
+    */
     *string font_path;
 
     //! Enable bold style
@@ -294,6 +298,10 @@ nothing PdfEditor::drawImageFromData(int page_index, binary image_data, float x,
     @param opacity opacity value 0.0-1.0
 
     @throw PDF-ERROR if the text cannot be drawn
+    @throw PERMISSION-DENIED the font of the style has a \c font_path and the calling code is restricted from the
+    \c FILESYSTEM functional domain
+    @throw FILESYSTEM-ACCESS-DENIED the font of the style has a \c font_path that the file-system policy of a sandbox
+    that governs the calling code does not allow to read
 */
 nothing PdfEditor::drawText(int page_index, string text, float x, float y,
         *hash<PdfTextStyle> style, float rotation = 0.0, float opacity = 1.0) [flags=NAMED_ARGS] {
