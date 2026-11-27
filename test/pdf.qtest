@@ -60,6 +60,7 @@ public class PdfTest inherits QUnit::Test {
         addTestCase("Named argument tests", \namedArgumentTest());
         addTestCase("Memory serialization ownership", \memorySerializationTest());
         addTestCase("Split failure ownership", \splitFailureOwnershipTest());
+        addTestCase("Error messages with format characters", \errorFormatCharactersTest());
 
         set_return_value(main());
     }
@@ -750,5 +751,25 @@ public class PdfTest inherits QUnit::Test {
         assertTrue(text.find("Named text") >= 0, "extractText accepts named args");
         string textFromData = PdfRenderer::extractTextFromData(page_index: 1, data: pdfData);
         assertTrue(textFromData.find("Named text") >= 0, "extractTextFromData accepts named args");
+    }
+
+    #! the error messages of the libraries are not format strings: a path with format characters is reported as it is
+    errorFormatCharactersTest() {
+        string dir = testDir + "/%d%s%n";
+        foreach hash<auto> h in ((
+            {"desc": "editor", "c": sub () { PdfEditor e(dir + "/editor.pdf"); }, "name": "editor.pdf"},
+            {"desc": "document", "c": sub () { PdfDocument d(dir + "/document.pdf"); }, "name": "document.pdf"},
+            {"desc": "image", "c": sub () { PdfEditor::getImageDimensions(dir + "/image.png"); }, "name": "image.png"},
+            {"desc": "writer", "c": sub () { PdfWriter w(); w.addTextPage("x"); w.save(dir + "/writer.pdf"); },
+                "name": "writer.pdf"},
+        )) {
+            try {
+                h.c();
+                assertTrue(False, h.desc + ": no exception");
+            } catch (hash<ExceptionInfo> ex) {
+                assertEq("PDF-ERROR", ex.err, h.desc + ": error");
+                assertRegex("/%d%s%n/" + h.name, ex.desc, h.desc + ": the path is in the message as it is");
+            }
+        }
     }
 }

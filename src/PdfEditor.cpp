@@ -33,11 +33,11 @@
 #include <map>
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
-    xsink->raiseException("PDF-ERROR", msg);
+    xsink->raiseException("PDF-ERROR", "%s", msg);
 }
 
 static void pdf_error(ExceptionSink* xsink, const std::string& msg) {
-    xsink->raiseException("PDF-ERROR", msg.c_str());
+    xsink->raiseException("PDF-ERROR", "%s", msg.c_str());
 }
 
 // Named colors mapping

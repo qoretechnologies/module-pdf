@@ -30,7 +30,7 @@
 #include <qpdf/QPDFExc.hh>
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
-    xsink->raiseException("PDF-ERROR", msg);
+    xsink->raiseException("PDF-ERROR", "%s", msg);
 }
 
 QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {

@@ -43,7 +43,7 @@
 #endif
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
-    xsink->raiseException("PDF-ERROR", msg);
+    xsink->raiseException("PDF-ERROR", "%s", msg);
 }
 
 bool QorePdfRenderer::isAvailable() {
