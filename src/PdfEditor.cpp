@@ -27,6 +27,7 @@
 #include "pdf-module.h"
 
 #include <cmath>
+#include <functional>
 #include <algorithm>
 #include <cctype>
 #include <map>
@@ -1568,16 +1569,40 @@ QoreHashNode* QorePdfEditor::getEncryptionInfo(const std::string& path, const st
         return nullptr;
     }
 
+    return getEncryptionInfoIntern([&path, &password] (PoDoFo::PdfMemDocument& tempDoc) {
+        if (password.empty()) {
+            tempDoc.Load(path);
+        } else {
+            tempDoc.Load(path, password);
+        }
+    }, xsink);
+}
+
+QoreHashNode* QorePdfEditor::getEncryptionInfoFromData(const BinaryNode* data, const std::string& password,
+                                                        ExceptionSink* xsink) {
+    if (!data || !data->size()) {
+        pdf_error(xsink, "PDF data is required");
+        return nullptr;
+    }
+    // the document is read from memory: no file is written or read
+    return getEncryptionInfoIntern([data, &password] (PoDoFo::PdfMemDocument& tempDoc) {
+        PoDoFo::bufferview buffer(reinterpret_cast<const char*>(data->getPtr()), data->size());
+        if (password.empty()) {
+            tempDoc.LoadFromBuffer(buffer);
+        } else {
+            tempDoc.LoadFromBuffer(buffer, password);
+        }
+    }, xsink);
+}
+
+QoreHashNode* QorePdfEditor::getEncryptionInfoIntern(const std::function<void(PoDoFo::PdfMemDocument&)>& load,
+                                                      ExceptionSink* xsink) {
     try {
         PoDoFo::PdfMemDocument tempDoc;
         bool encrypted = false;
 
         try {
-            if (password.empty()) {
-                tempDoc.Load(path);
-            } else {
-                tempDoc.Load(path, password);
-            }
+            load(tempDoc);
         } catch (const PoDoFo::PdfError& e) {
             // Check if it's a password error
             if (e.GetCode() == PoDoFo::PdfErrorCode::InvalidPassword) {

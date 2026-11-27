@@ -65,6 +65,10 @@ public class PdfDataProviderTest inherits QUnit::Test {
         addTestCase("Password-protected PDF action tests", \passwordProtectedActionTest());
         addTestCase("Large page count action tests", \largePageCountActionTest());
         addTestCase("Corrupt PDF action tests", \corruptPdfActionTest());
+        addTestCase("Plain hash watermark fonts", \plainHashWatermarkTest());
+        addTestCase("Plain hash signature field fonts and colors", \plainHashSignatureFieldTest());
+        addTestCase("Form data without form fields", \formDataWithoutFieldsTest());
+        addTestCase("Encryption info of data", \encryptionInfoDataTest());
 
         set_return_value(main());
     }
@@ -105,6 +109,158 @@ public class PdfDataProviderTest inherits QUnit::Test {
         if (is_dir(testDir)) {
             system("rm -rf " + testDir);
         }
+    }
+
+    #! watermark fonts given as plain hashes, as JSON, qdp or a Qorus action gives them, are converted (issue #9)
+    plainHashWatermarkTest() {
+        binary pdf = getPdfData("plain hashes");
+
+        # watermark font and color
+        AbstractDataProvider dp = getDocumentProvider("add-watermark");
+        hash<auto> response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "watermark": {
+                "text": "DRAFT",
+                "font": {"family": "Helvetica", "size": 30.0, "bold": True},
+                "color": {"hex": "#FF0000"},
+            },
+        });
+        assertEq(NOTHING, response.warnings, "watermark: no warnings");
+        assertEq(1, response.pages_watermarked, "watermark: the page is watermarked");
+        assertTrue(response.data.size() > pdf.size(), "watermark: the document is changed");
+        # a font without a size gets the default size
+        response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "watermark": {"text": "DRAFT", "font": {"family": "Courier"}, "position": "tile"},
+        });
+        assertEq(NOTHING, response.warnings, "watermark without size: no warnings");
+        assertEq(1, response.pages_watermarked, "watermark without size: the page is watermarked");
+        # a font with an unknown key is not a font specification
+        response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "watermark": {"text": "DRAFT", "font": {"no_such_key": 1}},
+        });
+        assertEq(0, response.pages_watermarked, "watermark with an invalid font: nothing watermarked");
+        assertRegex("^Failed to add watermark on page 0", response.warnings[0],
+            "watermark with an invalid font: warning");
+
+    }
+
+    #! signature field fonts and colors given as plain hashes are converted (issue #9)
+    plainHashSignatureFieldTest() {
+        binary pdf = getPdfData("plain hashes");
+        AbstractDataProvider dp = getDocumentProvider("add-signature-field");
+        hash<auto> response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "signature": {
+                "label": "Signature",
+                "label_font": {"family": "Times", "size": 9.0},
+                "label_color": {"gray": 0.2},
+                "line_color": {"r": 0.0, "g": 0.0, "b": 1.0},
+                "draw_line": True,
+            },
+        });
+        assertEq(NOTHING, response.warnings, "signature field: no warnings");
+        assertEq(1, response.fields_added, "signature field: the field is added");
+        # the defaults still apply without them
+        response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "signature": {"label": "Signature", "draw_line": True},
+        });
+        assertEq(NOTHING, response.warnings, "signature field with defaults: no warnings");
+        assertEq(1, response.fields_added, "signature field with defaults: the field is added");
+        # a color with an unknown key is not a color
+        response = dp.doRequest({
+            "data": pdf,
+            "return_data": True,
+            "signature": {"label": "Signature", "draw_line": True, "line_color": {"no_such_key": 1}},
+        });
+        assertEq(0, response.fields_added, "signature field with an invalid color: nothing added");
+        assertTrue(response.warnings.size() > 0, "signature field with an invalid color: warning");
+    }
+
+    #! a document without form fields has empty form data (issue #10)
+    formDataWithoutFieldsTest() {
+        AbstractDataProvider dp = getDocumentProvider("get-form-data");
+        hash<auto> response = dp.doRequest({"data": getPdfData("no fields")});
+        assertEq({"success": True, "data": {}, "field_count": 0}, response, "no form fields");
+        response = dp.doRequest({"data": getPdfData("no fields"), "fields": ("name",)});
+        assertEq({"success": True, "data": {}, "field_count": 0}, response, "no form fields with a field list");
+        # a document with form fields still has its data
+        PdfEditor editor(getPdfData("fields"));
+        editor.createFormField("name", "text", 0, 100.0, 100.0, 200.0, 20.0, {"default_value": "value"});
+        response = dp.doRequest({"data": editor.saveToMemory()});
+        assertEq(1, response.field_count, "form field count");
+        assertEq("value", response.data.name, "form field value");
+    }
+
+    #! the encryption information of data and locations is read in memory: no temporary file is written (issue #10)
+    encryptionInfoDataTest() {
+        AbstractDataProvider dp = getDocumentProvider("get-encryption-info");
+        string dir = testDir + "/enc-tmp";
+        mkdir(dir);
+        # a predictable temporary file name (as the action used before, in the process's temporary directory), which
+        # another local user can pre-create as a symlink, would be written through and removed
+        string target = dir + "/target";
+        File f();
+        f.open2(target, O_CREAT | O_WRONLY | O_TRUNC);
+        f.write("target");
+        f.close();
+        string tmp_dir = ENV.TMPDIR ?? (PlatformOS == "Windows" ? ENV.TEMP ?? "." : "/tmp");
+        string link = sprintf("%s/.pdf_enc_tmp_%d.pdf", tmp_dir, getpid());
+        symlink(target, link);
+        on_exit {
+            if (exists hlstat(link)) {
+                unlink(link);
+            }
+        }
+
+        hash<auto> response = dp.doRequest({"data": getPdfData("not encrypted")});
+        assertEq(False, response.encrypted, "data not encrypted");
+
+        PdfEditor editor(getPdfData("encrypted"));
+        editor.setEncryption("owner", "user", NOTHING, "aes-256");
+        binary encrypted = editor.saveToMemory();
+        response = dp.doRequest({"data": encrypted, "password": "owner"});
+        assertEq(True, response.encrypted, "data encrypted");
+        assertEq("aes-256", response.algorithm, "data algorithm");
+        assertEq(256, response.key_length, "data key length");
+        # without the password, the document is still known to be encrypted
+        response = dp.doRequest({"data": encrypted});
+        assertEq(True, response.encrypted, "data encrypted without password");
+
+        string path = testDir + "/enc-info.pdf";
+        File out();
+        out.open2(path, O_CREAT | O_WRONLY | O_TRUNC);
+        out.write(encrypted);
+        out.close();
+        response = dp.doRequest({"location": "file://" + path, "password": "owner"});
+        assertEq("aes-256", response.algorithm, "location algorithm");
+        # a file path is read directly
+        response = dp.doRequest({"input_path": path, "password": "owner"});
+        assertEq("aes-256", response.algorithm, "file algorithm");
+
+        assertEq(binary("target"), ReadOnlyFile::readBinaryFile(target), "nothing written through the symlink");
+        assertTrue(is_link(link), "the symlink is not removed");
+
+        # the static method
+        assertEq(False, PdfEditor::getEncryptionInfoFromData(getPdfData("static")).encrypted, "static: not encrypted");
+        assertEq("aes-256", PdfEditor::getEncryptionInfoFromData(encrypted, "user").algorithm,
+            "static: user password");
+        assertThrows("PDF-ERROR", \PdfEditor::getEncryptionInfoFromData(), binary(), "static: empty data");
+        assertThrows("PDF-ERROR", \PdfEditor::getEncryptionInfoFromData(), binary("not a pdf"), "static: not a PDF");
+    }
+
+    #! returns a PDF document with the given text
+    private static binary getPdfData(string text) {
+        PdfWriter writer();
+        writer.addTextPage(text);
+        return writer.saveToMemory();
     }
 
     private string createPdf(string path, string text, *hash<PdfMetadata> metadata = NOTHING) {

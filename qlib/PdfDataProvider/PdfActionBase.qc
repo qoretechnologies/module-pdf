@@ -398,14 +398,9 @@ public class PdfActionBase inherits AbstractDataProvider {
     static writeBinaryFile(string path, binary data) {
         # the path is the caller's input when this public method is called directly
         PdfActionBase::checkCallerPaths({"path": path}, ("path",));
-        pdf_write_binary_file(path, data);
+        File f();
+        f.open2(path, O_CREAT | O_WRONLY | O_TRUNC);
+        f.write(data);
     }
-}
-
-#! Writes binary data to a file of the module (not a path that the calling code gives)
-sub pdf_write_binary_file(string path, binary data) {
-    File f();
-    f.open2(path, O_CREAT | O_WRONLY | O_TRUNC);
-    f.write(data);
 }
 }

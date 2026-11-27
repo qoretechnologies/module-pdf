@@ -393,6 +393,11 @@ module PdfDataProvider {
       used if the calling code is restricted from the file system, also when the host created the provider and gave
       it to that code (see @ref pdfdp_caller_paths,
       <a href="https://github.com/qoretechnologies/module-pdf/issues/8">issue 8</a>)
+    - the fonts and colors of watermarks and signature fields can be given as plain hashes, as JSON, \c qdp or a
+      Qorus action give them (<a href="https://github.com/qoretechnologies/module-pdf/issues/9">issue 9</a>)
+    - \c document/get-form-data returns empty form data for a document without form fields, and
+      \c document/get-encryption-info reads documents given as data or locations in memory, without a temporary
+      file (<a href="https://github.com/qoretechnologies/module-pdf/issues/10">issue 10</a>)
 */
 
 public namespace PdfDataProvider {
