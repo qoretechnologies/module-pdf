@@ -38,6 +38,8 @@ qclass PdfReader [arg=QorePdfReader* reader; ns=Qore::Pdf];
     @param password optional password
 
     @throw PDF-ERROR if the document cannot be opened
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 PdfReader::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {

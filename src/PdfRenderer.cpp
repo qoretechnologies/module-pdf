@@ -284,6 +284,10 @@ QoreHashNode* QorePdfRenderer::renderPage(const std::string& path, int page_inde
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
@@ -349,6 +353,10 @@ QoreStringNode* QorePdfRenderer::extractText(const std::string& path, int page_i
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;

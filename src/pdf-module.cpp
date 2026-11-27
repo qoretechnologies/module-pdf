@@ -88,5 +88,20 @@ static void pdf_module_ns_init(QoreNamespace* rns, QoreNamespace* qns, Exception
     qns->addNamespace(PdfNs.copy());
 }
 
+int pdf_check_caller_path(const char* what, bool always, ExceptionSink* xsink) {
+#ifdef QORE_HAVE_CALLER_AMBIENT_PREDICATES
+    // the code that a lent object was lent to counts, also if the object's methods run with the file system lent
+    bool restricted = qore_caller_lent_to_restricts_domain(QDOM_FILESYSTEM);
+#else
+    bool restricted = always && qore_caller_restricts_domain(QDOM_FILESYSTEM);
+#endif
+    if (restricted) {
+        xsink->raiseException("PERMISSION-DENIED", "the '%s' path cannot be used: the calling code (also the code "
+            "that a host-created object was lent to) is restricted from the FILESYSTEM functional domain", what);
+        return -1;
+    }
+    return 0;
+}
+
 static void pdf_module_delete() {
 }

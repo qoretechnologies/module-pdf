@@ -45,4 +45,28 @@ DLLLOCAL TypedHashDecl* init_hashdecl_PdfColor(QoreNamespace& ns);
 DLLLOCAL TypedHashDecl* init_hashdecl_PdfTextStyle(QoreNamespace& ns);
 DLLLOCAL TypedHashDecl* init_hashdecl_PdfFontSpec(QoreNamespace& ns);
 
+#ifdef QORE_HAVE_CALLER_AMBIENT_PREDICATES
+//! the paths that a lent object gives are decided with the code that it was lent to
+#define PDF_LENT_PATH_CHECKS_VAL true
+#else
+#define PDF_LENT_PATH_CHECKS_VAL false
+#endif
+
+//! Refuses a file path that the calling code gives if that code is restricted from the file system
+/** A method of an object that unrestricted code (the host) created and lent to restricted code runs with the file
+    system lent (a capability frame): the code that the object was lent to decides
+    (qore_caller_lent_to_restricts_domain(); module-pdf#12).  With a %Qore without that function
+    (\c QORE_HAVE_CALLER_AMBIENT_PREDICATES is not defined), only the calling code decides
+    (qore_caller_restricts_domain()) if \a always is true, and nothing is checked otherwise: the methods with the
+    \c FILESYSTEM functional domain are refused for restricted calling code when they are called
+
+    @param what the argument or option with the path, for the exception
+    @param always true for a path that a method without the \c FILESYSTEM functional domain takes (such as the
+    \c font_path of a font)
+    @param xsink raises \c PERMISSION-DENIED if the path is refused
+
+    @return 0 if the path can be used, -1 if \c PERMISSION-DENIED was raised
+*/
+DLLLOCAL int pdf_check_caller_path(const char* what, bool always, ExceptionSink* xsink);
+
 #endif

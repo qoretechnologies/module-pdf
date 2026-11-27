@@ -44,6 +44,10 @@ QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
 
 QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd, ExceptionSink* xsink)
         : password(pwd) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
@@ -193,6 +197,10 @@ void QorePdfDocument::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
@@ -279,6 +287,10 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("inputs", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
 
     try {
@@ -333,6 +345,10 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("inputs", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     warnings = new QoreListNode();
 
@@ -382,6 +398,10 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         const std::string& prefix, ExceptionSink* xsink) {
     ReferenceHolder<QoreListNode> outputs(new QoreListNode(stringTypeInfo), xsink);
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("input_path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return nullptr;
@@ -437,6 +457,10 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
     QoreListNode* outputs = new QoreListNode();
     warnings = new QoreListNode();
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("input_path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return outputs;

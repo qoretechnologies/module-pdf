@@ -60,6 +60,9 @@ qclass PdfDocument [arg=QorePdfDocument* doc; ns=Qore::Pdf];
 //! Opens a PDF document from a file
 /** @param path the PDF file path
     @param password optional password
+
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 PdfDocument::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -136,6 +139,8 @@ binary PdfDocument::toData() {
     @param path output PDF path
 
     @throw PDF-ERROR if the document is not initialized or cannot be saved
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 nothing PdfDocument::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -181,6 +186,8 @@ nothing PdfDocument::rotatePages(list<int> pages, int degrees) [flags=NAMED_ARGS
     @return a new PdfDocument containing all pages
 
     @throw PDF-ERROR if any input cannot be read or the input list is invalid
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!inputs || inputs->size() == 0) {
@@ -206,6 +213,8 @@ static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [do
     @throw FILESYSTEM-ACCESS-DENIED the file-system policy of a sandbox that governs the calling code does not allow
     the input to be read, or an output file to be written; each output file is checked, as the prefix can name
     another directory
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static list<string> PdfDocument::split(string input_path, string output_dir, *string prefix = "page_")
         [dom=FILESYSTEM;flags=NAMED_ARGS] {

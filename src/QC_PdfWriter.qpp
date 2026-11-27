@@ -116,6 +116,8 @@ nothing PdfWriter::setFontOptions(hash<PdfFontOptions> options) [flags=NAMED_ARG
 /** @param path output PDF path
 
     @throw PDF-ERROR if the document cannot be saved
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 nothing PdfWriter::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {

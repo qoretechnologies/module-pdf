@@ -27,6 +27,8 @@
 
 %modern
 %prepend-module-path "${SCRIPT_DIR}/../qlib"
+# the test module whose objects the host lends
+%prepend-module-path "${SCRIPT_DIR}"
 
 %requires QUnit
 %requires Util
@@ -34,6 +36,7 @@
 %requires DataProvider
 %requires pdf
 %requires PdfDataProvider
+%requires PdfLentUser
 
 %exec-class CallerFileAccessTest
 
@@ -43,8 +46,9 @@
     Program with PO_NO_FILESYSTEM is refused with PERMISSION-DENIED, a Program whose sandbox denies the file system by
     default with FILESYSTEM-ACCESS-DENIED (its file-system policy, when the file is opened), and a location is refused
     for a Program restricted from a domain of its scheme's handler; nothing is written.  A custom font file given to
-    PdfEditor::drawText() is refused for restricted callers too.  Requests without paths still work for restricted
-    callers, and unrestricted callers use the paths.
+    PdfEditor::drawText() is refused for restricted callers too, and the paths that a method of a lent object of a
+    module class gives the PDF classes are refused for the restricted code that it was lent to (module-pdf#12).
+    Requests without paths still work for restricted callers, and unrestricted callers use the paths.
 */
 class CallerFileAccessTest inherits QUnit::Test {
     private {
@@ -131,6 +135,20 @@ string sub draw_text(binary pdf, hash<auto> font) {
         editor.drawText(0, \"text\", 10.0, 10.0, <PdfTextStyle>{\"font\": font});
     });
 }
+
+# draws text with the given font on a page of a PDF editor that the host created
+string sub lent_draw_text(PdfEditor editor, hash<auto> font) {
+    return run(sub () {
+        editor.drawText(0, \"text\", 10.0, 10.0, <PdfTextStyle>{\"font\": font});
+    });
+}
+
+# calls a method of an object that the host created
+string sub lent_call(object obj, string method, softlist<auto> args) {
+    return run(sub () {
+        call_object_method_args(obj, method, args);
+    });
+}
 ";
     }
 
@@ -177,6 +195,7 @@ string sub draw_text(binary pdf, hash<auto> font) {
             addTestCase("location options, " + m, sub () { testLocationOptions(m); });
             addTestCase("requests without paths, " + m, sub () { testNoPaths(m); });
             addTestCase("editor fonts, " + m, sub () { testEditorFont(m); });
+            addTestCase("lent editor, " + m, sub () { testLentEditor(m); });
             addTestCase("module files, " + m, sub () { testModuleFiles(m); });
             addTestCase("split prefix, " + m, sub () { testSplitPrefix(m); });
         }
@@ -415,9 +434,9 @@ string sub draw_text(binary pdf, hash<auto> font) {
         checkUnchanged("no paths " + mode);
     }
 
-    #! a temporary file of an action is not a path of the caller
+    #! an action that is given a document as data uses no path of the caller
     private testModuleFiles(string mode) {
-        # get-encryption-info writes the data to a temporary file of its own
+        # get-encryption-info reads the data in memory (module-pdf#10)
         foreach string kind in ("nofs", "unrestricted") {
             string desc = sprintf("%s get-encryption-info data %s", kind, mode);
             assertEq("ok", getProgram(kind, mode).callFunction("request", "document/get-encryption-info",
@@ -447,6 +466,88 @@ string sub draw_text(binary pdf, hash<auto> font) {
             "sandbox split " + mode);
         assertTrue(is_file(outdir + "/part_1.pdf"), "split written " + mode);
         reset();
+    }
+
+    #! paths given to the PDF classes by a lent object are decided with the restricted code it was lent to
+    /** An object of a module class that the host creates and lends to restricted code runs its methods with the file
+        system lent, so the PDF classes decide on the paths that such a method gives them with the code that the
+        object was lent to (module-pdf#12), before anything is read or written; the editor's own state stays usable for
+        that code, and unrestricted borrowers and the host use the paths
+    */
+    private testLentEditor(string mode) {
+        PdfEditor editor(pdf_data);
+        PdfUser user(editor);
+        hash<auto> f = {"font_path": font};
+        hash<auto> std_font = {"family": "Courier"};
+        Program nofs = getProgram("nofs", mode);
+        Program unrestricted = getProgram("unrestricted", mode);
+
+        # paths that would be read: the font and image files are not a font and an image and would fail with
+        # PDF-ERROR, the input would be read
+        list<list<auto>> reads = (
+            ("drawText", f),
+            ("drawImage", font),
+            ("load", input),
+            ("getImageDimensions", image),
+            ("getEncryptionInfo", input),
+            ("loadDocument", input),
+            ("loadReader", input),
+            # one argument: the list of inputs
+            ("merge", ((input,),)),
+            ("split", (input, outdir)),
+        );
+        if (PdfRenderer::isAvailable()) {
+            reads += (
+                ("extractText", input),
+                ("renderPage", input),
+            );
+        }
+        # paths that would be written
+        list<list<auto>> writes = (
+            ("save", out),
+            ("saveDocument", (pdf_data, out)),
+            ("saveWriter", out),
+            ("save", "0"),
+        );
+        # built with an older Qore, the module cannot see the code that the object was lent to
+        if (PDF_LENT_PATH_CHECKS) {
+            foreach list<auto> c in (reads + writes) {
+                assertEq("PERMISSION-DENIED", nofs.callFunction("lent_call", user, c[0], c[1]),
+                    sprintf("nofs lent %s %s", c[0], mode));
+            }
+            checkUnchanged("nofs lent editor " + mode);
+        }
+
+        # the editor's own state stays usable
+        assertEq("ok", nofs.callFunction("lent_call", user, "drawText", std_font), "nofs lent standard font " + mode);
+        assertEq("ok", nofs.callFunction("lent_call", user, "drawImageFromData", Png), "nofs lent image data " + mode);
+        assertEq("ok", nofs.callFunction("lent_call", user, "saveToMemory", ()), "nofs lent save to memory " + mode);
+        assertEq("ok", nofs.callFunction("lent_call", user, "getEncryptionInfoFromData", pdf_data),
+            "nofs lent encryption info from data " + mode);
+        # the editor itself is not a capability: its methods are called by the restricted code
+        assertEq("PERMISSION-DENIED", nofs.callFunction("lent_draw_text", editor, f), "nofs editor font " + mode);
+        assertEq("INVALID-FUNCTION-ACCESS", nofs.callFunction("lent_call", editor, "save", out),
+            "nofs editor save " + mode);
+        assertEq("ok", nofs.callFunction("lent_draw_text", editor, std_font), "nofs editor standard font " + mode);
+        checkUnchanged("nofs lent editor state " + mode);
+
+        # unrestricted borrowers use the paths: the font file is read and is not a font
+        assertEq("PDF-ERROR", unrestricted.callFunction("lent_call", user, "drawText", f),
+            "unrestricted lent font " + mode);
+        assertEq("ok", unrestricted.callFunction("lent_call", user, "getEncryptionInfo", input),
+            "unrestricted lent encryption info " + mode);
+        assertEq("ok", unrestricted.callFunction("lent_call", user, "save", out), "unrestricted lent save " + mode);
+        assertTrue(is_file(out), "unrestricted lent saved " + mode);
+        unlink(out);
+
+        # the host uses the paths itself
+        user.save(out);
+        assertTrue(is_file(out), "host saves " + mode);
+        assertThrows("PDF-ERROR", \user.drawText(), f, "host font " + mode);
+        reset();
+        if (!PDF_LENT_PATH_CHECKS) {
+            testSkip("the module was built with a Qore without qore_caller_lent_to_restricts_domain()");
+        }
     }
 
     #! a custom font file given to PdfEditor::drawText() is refused for restricted callers
