@@ -67,7 +67,7 @@ QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd
 }
 
 QorePdfDocument::QorePdfDocument(const BinaryNode* data, const std::string& pwd, ExceptionSink* xsink)
-        : binary_data(static_cast<BinaryNode*>(data->refSelf())), password(pwd) {
+        : binary_data(data ? static_cast<BinaryNode*>(data->refSelf()) : nullptr), password(pwd) {
     if (!data || data->size() == 0) {
         pdf_error(xsink, "binary data is empty");
         return;

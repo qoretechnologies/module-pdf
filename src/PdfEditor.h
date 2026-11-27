@@ -146,6 +146,9 @@ public:
     static QoreHashNode* getImageDimensionsFromData(const BinaryNode* data, ExceptionSink* xsink);
 
 private:
+    //! the data that the document was loaded from: PoDoFo reads objects from it later (delayed loading), so it is
+    //! kept for the lifetime of the document and released after it (declared before it; module-pdf#13)
+    SimpleRefHolder<BinaryNode> binary_data;
     std::unique_ptr<PoDoFo::PdfMemDocument> doc;
     bool embed_fonts = true;
     bool subset_fonts = true;

@@ -66,8 +66,10 @@ public:
     static QoreListNode* collectWarnings(QPDF& qpdf);
 
 private:
-    std::unique_ptr<QPDF> qpdf;
+    //! the data of a document loaded from memory, which QPDF reads for the lifetime of the QPDF object: declared before
+    //! it, so that it is released after it (module-pdf#13)
     SimpleRefHolder<BinaryNode> binary_data;
+    std::unique_ptr<QPDF> qpdf;
     std::string password;
     bool has_doc = false;
 

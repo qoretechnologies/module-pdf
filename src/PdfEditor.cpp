@@ -126,11 +126,13 @@ QorePdfEditor::QorePdfEditor(const BinaryNode* data, const std::string& password
         return;
     }
 
+    // the document reads its objects from the data later: the data is kept as long as the document
+    binary_data = static_cast<BinaryNode*>(data->refSelf());
     try {
         doc = std::make_unique<PoDoFo::PdfMemDocument>();
         PoDoFo::bufferview buffer(
-            reinterpret_cast<const char*>(data->getPtr()),
-            data->size()
+            reinterpret_cast<const char*>(binary_data->getPtr()),
+            binary_data->size()
         );
         if (password.empty()) {
             doc->LoadFromBuffer(buffer);
