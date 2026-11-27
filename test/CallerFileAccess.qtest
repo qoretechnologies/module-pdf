@@ -1,0 +1,560 @@
+#!/usr/bin/env qore
+# -*- mode: qore; indent-tabs-mode: nil -*-
+
+/*
+    Qore PdfDataProvider caller file access test
+
+    Copyright (C) 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%modern
+%prepend-module-path "${SCRIPT_DIR}/../qlib"
+
+%requires QUnit
+%requires Util
+%requires FsUtil
+%requires DataProvider
+%requires pdf
+%requires PdfDataProvider
+
+%exec-class CallerFileAccessTest
+
+#! Tests that the paths that restricted callers give the PDF actions are refused before they are used (module-pdf#8)
+/** Library code runs with its own Program's options, so the actions refuse a path or location in a request if the
+    calling code is restricted from the file system, also if a host-created provider was lent to that code: a
+    Program with PO_NO_FILESYSTEM is refused with PERMISSION-DENIED, a Program whose sandbox denies the file system by
+    default with FILESYSTEM-ACCESS-DENIED (its file-system policy, when the file is opened), and a location is refused
+    for a Program restricted from a domain of its scheme's handler; nothing is written.  A custom font file given to
+    PdfEditor::drawText() is refused for restricted callers too.  Requests without paths still work for restricted
+    callers, and unrestricted callers use the paths.
+*/
+class CallerFileAccessTest inherits QUnit::Test {
+    private {
+        const Modes = {"ast": EM_AST, "ir": EM_IR, "jit": EM_JIT, "tiered": EM_TIERED};
+
+        #! a 1x1 PNG image
+        const Png = <89504E470D0A1A0A0000000D4948445200000001000000010802000000907753DE> +
+            <0000000C49444154789C63F8CFC0000003010100C9FE92EF0000000049454E44AE426082>;
+
+        const Source = "%modern
+%requires DataProvider
+%requires pdf
+%requires PdfDataProvider
+
+# runs the given use and returns \"ok\", the warnings of its result (an action reports a failure to draw on a page as
+# a warning) or the error
+string sub run(code c) {
+    try {
+        auto v = c();
+        # a typed hash without the key would raise INVALID-MEMBER
+        if (v.typeCode() == NT_HASH && v.hasKey(\"warnings\") && v{\"warnings\"}) {
+            return \"warning: \" + v{\"warnings\"}.join(\"; \");
+        }
+        return \"ok\";
+    } catch (hash<ExceptionInfo> ex) {
+        return ex.err;
+    }
+}
+
+# returns the provider of the given action, created by this Program
+AbstractDataProvider sub get_provider(string path) {
+    if (path == \"sign\") {
+        return new PdfSignDataProvider();
+    }
+    AbstractDataProvider dp = new PdfDataProvider();
+    foreach string seg in (path.split(\"/\")) {
+        dp = dp.getChildProviderEx(seg);
+    }
+    return dp;
+}
+
+# makes a request with a provider that this Program creates
+string sub request(string path, hash<auto> req) {
+    return run(auto sub () { return get_provider(path).doRequest(req); });
+}
+
+# makes a request with a provider that the host created
+string sub lent_request(AbstractDataProvider dp, hash<auto> req) {
+    return run(auto sub () { return dp.doRequest(req); });
+}
+
+# calls a public helper of PdfActionBase with the given path
+string sub helper(string what, string path, binary data) {
+    return run(sub () {
+        switch (what) {
+            case \"write\":
+                PdfActionBase::writeBinaryFile(path, data);
+                break;
+            case \"load\":
+                PdfActionBase::loadDocument({\"input_path\": path});
+                break;
+            case \"editor\":
+                PdfActionBase::loadEditor({\"input_path\": path});
+                break;
+            case \"renderer\":
+                PdfActionBase::getRendererData({\"input_path\": path});
+                break;
+            case \"output\":
+                PdfActionBase::makeOutputResponse(data, {\"output_path\": path});
+                break;
+            case \"save\":
+                PdfActionBase::saveEditorOutput(new PdfEditor(data), {\"output_path\": path});
+                break;
+            default:
+                throw \"TEST-ERROR\", what;
+        }
+    });
+}
+
+# draws text with the given font on a page of a PDF editor
+string sub draw_text(binary pdf, hash<auto> font) {
+    return run(sub () {
+        PdfEditor editor(pdf);
+        editor.drawText(0, \"text\", 10.0, 10.0, <PdfTextStyle>{\"font\": font});
+    });
+}
+";
+    }
+
+    private {
+        #! the directory of the test
+        string dir;
+        #! a PDF document
+        string input;
+        #! the document's data
+        binary pdf_data;
+        #! an image
+        string image;
+        #! the output file
+        string out;
+        #! the output directory of a split
+        string outdir;
+        #! a file that is not a font
+        string font;
+    }
+
+    constructor() : QUnit::Test("CallerFileAccess", "1.0", \ARGV) {
+        dir = make_tmp_dir("pdf-caller-file-access-");
+        # a relative path is used in the current directory
+        mkdir(dir + "/cwd");
+        chdir(dir + "/cwd");
+        input = dir + "/input.pdf";
+        out = dir + "/out.pdf";
+        outdir = dir + "/split";
+        image = dir + "/image.png";
+        font = dir + "/font.ttf";
+        PdfWriter writer();
+        writer.addTextPage("caller file access");
+        pdf_data = writer.saveToMemory();
+        writeFile(image, Png);
+        writeFile(font, <00>);
+        reset();
+
+        foreach string mode in (keys Modes) {
+            string m = mode;
+            addTestCase("restricted callers, " + m, sub () { testRestricted(m); });
+            addTestCase("lent providers, " + m, sub () { testLent(m); });
+            addTestCase("network locations, " + m, sub () { testNetworkLocations(m); });
+            addTestCase("helper methods, " + m, sub () { testHelpers(m); });
+            addTestCase("location options, " + m, sub () { testLocationOptions(m); });
+            addTestCase("requests without paths, " + m, sub () { testNoPaths(m); });
+            addTestCase("editor fonts, " + m, sub () { testEditorFont(m); });
+            addTestCase("module files, " + m, sub () { testModuleFiles(m); });
+            addTestCase("split prefix, " + m, sub () { testSplitPrefix(m); });
+        }
+        set_return_value(main());
+    }
+
+    destructor() {
+        if (dir) {
+            remove_tree(dir);
+        }
+    }
+
+    #! returns the requests with paths: action path, description, request, True if the unrestricted request succeeds
+    /** an unrestricted request with a font path fails, as the font file is not a font; the fonts of watermarks and
+        signature labels are typed (PdfFontSpec), as the actions assign them to typed hashes
+    */
+    private list<list<auto>> getPathRequests() {
+        hash<auto> d = {"data": pdf_data, "return_data": True};
+        return (
+            ("document/create", "output_path", {"page_count": 1, "output_path": out}, True),
+            ("document/create", "output_location", {"page_count": 1, "output_location": "file://" + out}, True),
+            ("document/info", "input_path", {"input_path": input}, True),
+            ("document/info", "location", {"location": "file://" + input}, True),
+            ("document/info", "plain location", {"location": input}, True),
+            ("document/metadata", "input_path", {"input_path": input, "metadata": {"title": "x"},
+                "return_data": True}, True),
+            ("document/metadata", "output_path", d + {"metadata": {"title": "x"}, "output_path": out}, True),
+            ("document/metadata", "output_location", d + {"metadata": {"title": "x"},
+                "output_location": "file://" + out}, True),
+            ("document/merge", "inputs", {"inputs": (input,), "return_data": True}, True),
+            ("document/merge", "output_path", {"inputs": (input,), "output_path": out}, True),
+            ("document/split", "input_path", {"input_path": input, "output_dir": outdir}, True),
+            ("document/split", "output_dir", {"data": pdf_data, "output_dir": outdir}, True),
+            ("document/rotate", "input_path", {"input_path": input, "pages": (0,), "degrees": 90,
+                "return_data": True}, True),
+            ("document/rotate", "output_path", d + {"pages": (0,), "degrees": 90, "output_path": out}, True),
+            ("document/add-image", "image.image_path", d + {"image": {"image_path": image}}, True),
+            ("document/add-image", "placements image_path", d + {"placements": ({"image_path": image},)}, True),
+            ("document/add-image", "later placements image_path", d + {"placements": ({"image_data": Png},
+                {"image_path": image})}, True),
+            ("document/add-image", "output_path", d + {"image": {"image_data": Png}, "output_path": out,
+                "return_data": False}, True),
+            ("document/add-text", "text font_path", d + {"text": {"text": "x", "style": {"font":
+                {"font_path": font}}}}, False),
+            ("document/add-text", "placements font_path", d + {"placements": ({"text": "x", "style": {"font":
+                {"font_path": font}}},)}, False),
+            ("document/add-text", "input_path", {"input_path": input, "text": {"text": "x"}, "return_data": True},
+                True),
+            ("document/add-watermark", "image_path", d + {"watermark": {"type": "image", "image_path": image}},
+                True),
+            ("document/add-watermark", "font_path", d + {"watermark": {"text": "x",
+                "font": <PdfFontSpec>{"font_path": font}}},
+                False),
+            ("document/add-signature-field", "image_path", d + {"signature": {"image_path": image}}, True),
+            ("document/add-signature-field", "label_font font_path", d + {"signature": {"label": "x",
+                "label_font": <PdfFontSpec>{"font_path": font}}}, False),
+            ("document/list-form-fields", "input_path", {"input_path": input}, True),
+            # a document without form fields fails later in get-form-data
+            ("document/get-form-data", "input_path", {"input_path": input}, False),
+            ("document/fill-form", "input_path", {"input_path": input, "form_data": {"a": "b"},
+                "return_data": True}, False),
+            ("document/create-form-field", "output_path", d + {"field": {"name": "f", "type": "text",
+                "page": 0, "x": 10.0, "y": 10.0, "width": 50.0, "height": 20.0},
+                "output_path": out, "return_data": False}, False),
+            ("document/encrypt", "input_path", {"input_path": input, "owner_password": "pw", "return_data": True},
+                True),
+            ("document/encrypt", "output_location", d + {"owner_password": "pw", "output_location": "file://" + out,
+                "return_data": False}, True),
+            ("document/decrypt", "input_path", {"input_path": input, "password": "pw", "return_data": True}, False),
+            ("document/get-encryption-info", "input_path", {"input_path": input}, True),
+            ("document/get-encryption-info", "location", {"location": "file://" + input}, True),
+            ("document/create-signature-field", "input_path", {"input_path": input, "field": {"name": "s",
+                "page": 0, "x": 10.0, "y": 10.0, "width": 50.0, "height": 20.0},
+                "return_data": True}, False),
+            ("document/list-signatures", "input_path", {"input_path": input}, True),
+            ("sign", "input_path", {"input_path": input, "field_name": "s", "certificate_data": <00>,
+                "private_key_data": <00>, "output_path": out}, False),
+            ("sign", "certificate_path", {"input_path": input, "field_name": "s", "certificate_path": image,
+                "private_key_data": <00>, "output_path": out}, False),
+            ("sign", "private_key_path", {"input_path": input, "field_name": "s", "certificate_data": <00>,
+                "private_key_path": image, "output_path": out}, False),
+            # a path that evaluates to False is a path too
+            ("document/add-text", "output_path \"0\"", d + {"text": {"text": "x"}, "output_path": "0"}, True),
+        ) + (PdfRenderer::isAvailable()
+            ? (
+                ("render/page", "input_path", {"input_path": input, "page_index": 0, "dpi": 36}, True),
+                ("render/page", "output_path", {"data": pdf_data, "page_index": 0, "dpi": 36, "output_path": out},
+                    True),
+                ("render/extract-text", "input_path", {"input_path": input, "page_index": 0}, True),
+                ("render/extract-text", "location", {"location": "file://" + input, "page_index": 0}, True),
+            )
+            : ());
+    }
+
+    #! paths given by restricted callers are refused before they are used; unrestricted callers use them
+    private testRestricted(string mode) {
+        # a failed case before this one can leave outputs
+        reset();
+        foreach list<auto> r in (getPathRequests()) {
+            string desc = sprintf("%s %s %s", r[0], r[1], mode);
+            assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("request", r[0], r[2]),
+                "nofs " + desc);
+            checkUnchanged("nofs " + desc);
+            # the file-system policy of the sandbox refuses the file when it is opened
+            checkSandbox(getProgram("sandbox", mode).callFunction("request", r[0], r[2]), "sandbox " + desc);
+            checkUnchanged("sandbox " + desc);
+            checkUnrestricted(getProgram("unrestricted", mode).callFunction("request", r[0], r[2]), r[3],
+                "unrestricted " + desc);
+            reset();
+        }
+    }
+
+    #! paths given by the restricted code that a host-created provider was lent to are refused
+    /** The host creates the action's provider itself: a provider that a method of a lent provider of another module
+        (DataProvider's AbstractDataProvider::getChildProviderEx()) creates is not lent
+    */
+    private testLent(string mode) {
+        # a failed case before this one can leave outputs
+        reset();
+        foreach list<auto> r in (getPathRequests()) {
+            string desc = sprintf("%s %s %s", r[0], r[1], mode);
+            assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf(r[0]), r[2]),
+                "nofs lent " + desc);
+            checkUnchanged("nofs lent " + desc);
+            checkSandbox(getProgram("sandbox", mode).callFunction("lent_request", getLeaf(r[0]), r[2]),
+                "sandbox lent " + desc);
+            checkUnchanged("sandbox lent " + desc);
+            checkUnrestricted(getProgram("unrestricted", mode).callFunction("lent_request", getLeaf(r[0]), r[2]),
+                r[3], "unrestricted lent " + desc);
+            reset();
+        }
+    }
+
+    #! a location is refused if the calling code is restricted from a functional domain of the handler of its scheme
+    private testNetworkLocations(string mode) {
+        # the refusal comes before any connection: nothing listens on the port
+        string url = "http://127.0.0.1:1/doc.pdf";
+        foreach list<auto> r in ((
+                ("document/info", {"location": url}),
+                ("document/create", {"page_count": 1, "output_location": url}),
+            )) {
+            string desc = sprintf("%s %s", r[0], mode);
+            assertEq("PERMISSION-DENIED", getProgram("nonet", mode).callFunction("request", r[0], r[1]),
+                "nonet " + desc);
+            assertEq("PERMISSION-DENIED", getProgram("nonet", mode).callFunction("lent_request", getLeaf(r[0]),
+                r[1]), "nonet lent " + desc);
+        }
+    }
+
+    #! the locations that restricted callers may use, the options of locations and the options of conn locations
+    private testLocationOptions(string mode) {
+        # a file location for code restricted only from the network
+        assertEq("ok", getProgram("nonet", mode).callFunction("request", "document/info",
+            {"location": "file://" + input}),
+            "nonet file location " + mode);
+        assertEq("ok", getProgram("nonet", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": "file://" + input}), "nonet lent file location " + mode);
+        # a network location for code restricted only from the file system: refused by the network, not by the module
+        string url = "http://127.0.0.1:1/x";
+        assertNeq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("request", "document/info",
+            {"location": url}),
+            "nofs http location " + mode);
+        assertNeq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": url}), "nofs lent http location " + mode);
+        # an option of a network location that names a local file
+        url = "https://127.0.0.1:1/x{ssl_cert_path=/etc/hostname}";
+        assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("request", "document/info",
+            {"location": url}),
+            "nofs https location with a file option " + mode);
+        assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": url}), "nofs lent https location with a file option " + mode);
+        # the options of a conn location are given to the handler of its connection, which does not see the code that
+        # a provider was lent to
+        url = "conn://no-such-connection/x{ssl_cert_path=/etc/hostname}";
+        assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": url}), "nofs lent conn location with options " + mode);
+        assertNeq("ok", getProgram("nofs", mode).callFunction("request", "document/info", {"location": url}),
+            "nofs conn location with options " + mode);
+        # without options, the connection decides
+        assertNeq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": "conn://no-such-connection/x"}), "nofs lent conn location " + mode);
+        # the options of other handlers without domains of their own are not given to another handler
+        assertNeq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": "data://abc{encoding_errors=strict}"}), "nofs lent data location with options " + mode);
+        # options that cannot be parsed
+        assertEq("LOCATION-ERROR", getProgram("nofs", mode).callFunction("lent_request", getLeaf("document/info"),
+            {"location": "file:///x{(1,2)}"}), "nofs lent location with invalid options " + mode);
+    }
+
+    #! the public helper methods of PdfActionBase refuse the paths of restricted callers
+    private testHelpers(string mode) {
+        # a failed case before this one can leave outputs
+        reset();
+        # a path that evaluates to False is a path too
+        foreach list<string> h in (("write", out), ("write", "0"), ("output", out), ("save", out), ("load", input),
+                ("editor", input), ("renderer", input)) {
+            string desc = sprintf("%s %s", h[0], mode);
+            assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("helper", h[0], h[1], pdf_data),
+                "nofs helper " + desc);
+            checkUnchanged("nofs helper " + desc);
+            assertEq("ok", getProgram("unrestricted", mode).callFunction("helper", h[0], h[1], pdf_data),
+                "unrestricted helper " + desc);
+            reset();
+        }
+    }
+
+    #! requests without paths work for restricted callers and with lent providers
+    private testNoPaths(string mode) {
+        # a failed case before this one can leave outputs
+        reset();
+        hash<auto> d = {"data": pdf_data, "return_data": True};
+        list<list<auto>> reqs = (
+            ("document/create", {"page_count": 1, "return_data": True}),
+            ("document/info", {"data": pdf_data}),
+            ("document/metadata", d + {"metadata": {"title": "x"}}),
+            ("document/rotate", d + {"pages": (0,), "degrees": 90}),
+            ("document/add-image", d + {"image": {"image_data": Png}}),
+            ("document/add-text", d + {"text": {"text": "x", "style": {"font": {"family": "Courier"}}}}),
+            ("document/add-watermark", d + {"watermark": {"text": "x"}}),
+            ("document/add-signature-field", d + {"signature": {"label": "x"}}),
+            ("document/list-form-fields", {"data": pdf_data}),
+            ("document/encrypt", d + {"owner_password": "pw"}),
+            ("document/list-signatures", {"data": pdf_data}),
+            # the location of a signature field is the signing location, not a file location
+            ("document/create-signature-field", d + {"field": {"name": "s", "page": 0, "x": 10.0, "y": 10.0,
+                "width": 50.0, "height": 20.0, "location": "/etc/hostname"}}),
+        );
+        foreach list<auto> r in (reqs) {
+            foreach string kind in ("nofs", "sandbox") {
+                string desc = sprintf("%s %s %s", kind, r[0], mode);
+                assertEq("ok", getProgram(kind, mode).callFunction("request", r[0], r[1]), desc);
+                assertEq("ok", getProgram(kind, mode).callFunction("lent_request", getLeaf(r[0]), r[1]),
+                    "lent " + desc);
+            }
+        }
+        checkUnchanged("no paths " + mode);
+    }
+
+    #! a temporary file of an action is not a path of the caller
+    private testModuleFiles(string mode) {
+        # get-encryption-info writes the data to a temporary file of its own
+        foreach string kind in ("nofs", "unrestricted") {
+            string desc = sprintf("%s get-encryption-info data %s", kind, mode);
+            assertEq("ok", getProgram(kind, mode).callFunction("request", "document/get-encryption-info",
+                {"data": pdf_data}), desc);
+            assertEq("ok", getProgram(kind, mode).callFunction("lent_request", getLeaf("document/get-encryption-info"),
+                {"data": pdf_data}), "lent " + desc);
+        }
+    }
+
+    #! the file-system policy of a sandbox decides for each file that a split writes, also outside its output directory
+    private testSplitPrefix(string mode) {
+        # a failed case before this one can leave outputs
+        reset();
+        SandboxManager sm();
+        sm.setFilesystemDefaultPolicy(False);
+        sm.addFilesystemAllowedPath(outdir, QSEC_READ | QSEC_WRITE | QSEC_CREATE | QSEC_DELETE);
+        Program p(PO_NEW_STYLE);
+        p.setSandboxManager(sm);
+        p.setExecMode(Modes{mode});
+        p.parse(Source, "sandbox-split");
+        hash<auto> req = {"data": pdf_data, "output_dir": outdir, "prefix": "../escaped_"};
+        assertEq("FILESYSTEM-ACCESS-DENIED", p.callFunction("request", "document/split", req),
+            "sandbox split prefix " + mode);
+        assertFalse(exists hstat(dir + "/escaped_1.pdf"), "nothing written outside the output directory " + mode);
+        # a prefix in the output directory is used
+        assertEq("ok", p.callFunction("request", "document/split", req + {"prefix": "part_"}),
+            "sandbox split " + mode);
+        assertTrue(is_file(outdir + "/part_1.pdf"), "split written " + mode);
+        reset();
+    }
+
+    #! a custom font file given to PdfEditor::drawText() is refused for restricted callers
+    private testEditorFont(string mode) {
+        hash<auto> f = {"font_path": font};
+        assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("draw_text", pdf_data, f),
+            "nofs editor font " + mode);
+        assertEq("FILESYSTEM-ACCESS-DENIED", getProgram("sandbox", mode).callFunction("draw_text", pdf_data, f),
+            "sandbox editor font " + mode);
+        # the file is not a font: an unrestricted caller reads it and fails to load it
+        assertEq("PDF-ERROR", getProgram("unrestricted", mode).callFunction("draw_text", pdf_data, f),
+            "unrestricted editor font " + mode);
+        # a font without a path works for restricted callers
+        assertEq("ok", getProgram("nofs", mode).callFunction("draw_text", pdf_data, {"family": "Courier"}),
+            "nofs editor standard font " + mode);
+    }
+
+    #! checks the result of a request of a sandboxed caller: the file-system policy refuses the file
+    /** An image or font file is opened when it is drawn on a page, and the actions report a failure to draw on a page
+        as a warning
+    */
+    private checkSandbox(string result, string desc) {
+        assertRegex("^(FILESYSTEM-ACCESS-DENIED$|warning: .*not permitted by security policy)", result, desc);
+    }
+
+    #! checks the result of an unrestricted request
+    private checkUnrestricted(string result, bool ok, string desc) {
+        if (ok) {
+            assertEq("ok", result, desc);
+        } else {
+            # the request fails later, for its other values (ex: the font file is not a font), not for the path
+            assertNeq("PERMISSION-DENIED", result, desc);
+            assertNeq("FILESYSTEM-ACCESS-DENIED", result, desc);
+        }
+    }
+
+    #! returns the action's provider, created by the host: the provider that the host lends to the restricted code
+    private static AbstractDataProvider getLeaf(string path) {
+        if (path == "sign") {
+            return new PdfSignDataProvider();
+        }
+        AbstractDataProvider dp = new PdfDataProvider();
+        foreach string seg in (path.split("/")) {
+            dp = dp.getChildProviderEx(seg);
+        }
+        return dp;
+    }
+
+    #! checks that nothing was written
+    private checkUnchanged(string desc) {
+        assertFalse(exists hstat(out), "nothing written: " + desc);
+        Dir d();
+        d.chdir(outdir);
+        assertEq((), d.list(), "nothing split: " + desc);
+        assertFalse(exists hstat("0"), "nothing written to a relative path: " + desc);
+        assertEq(pdf_data, ReadOnlyFile::readBinaryFile(input), "input unchanged: " + desc);
+    }
+
+    #! removes the outputs and restores the input
+    private reset() {
+        foreach string path in ((out, outdir, "0")) {
+            if (is_dir(path)) {
+                remove_tree(path);
+            } else if (exists hstat(path)) {
+                unlink(path);
+            }
+        }
+        resetInput();
+        # the output directory of a split exists
+        mkdir(outdir);
+    }
+
+    #! writes the input document
+    private resetInput() {
+        writeFile(input, pdf_data);
+    }
+
+    #! writes a file
+    private static writeFile(string path, binary data) {
+        File f();
+        f.open2(path, O_CREAT | O_WRONLY | O_TRUNC);
+        f.write(data);
+        f.close();
+    }
+
+    #! returns a Program of the given kind
+    private Program getProgram(string kind, string mode) {
+        Program p;
+        switch (kind) {
+            case "nofs":
+                p = new Program(PO_NEW_STYLE | PO_NO_FILESYSTEM);
+                break;
+            case "nonet":
+                p = new Program(PO_NEW_STYLE | PO_NO_NETWORK);
+                break;
+            case "sandbox": {
+                SandboxManager sm();
+                sm.setFilesystemDefaultPolicy(False);
+                p = new Program(PO_NEW_STYLE);
+                p.setSandboxManager(sm);
+                break;
+            }
+            default:
+                p = new Program(PO_NEW_STYLE);
+                break;
+        }
+        p.setExecMode(Modes{mode});
+        p.parse(Source, kind);
+        return p;
+    }
+}

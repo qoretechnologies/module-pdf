@@ -85,6 +85,9 @@ public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
+        # the paths and locations in the request are the caller's input, also for the code that a host-created
+        # provider was lent to: refused before anything is read or written if that code is restricted (issue #8)
+        PdfActionBase::checkCallerPaths(request, ("input_path",), ("location",));
 
         @debug("getting encryption info: input_path=%y location=%y has_data=%y",
             request.input_path, request.location, exists request.data);
@@ -98,7 +101,8 @@ public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
             binary pdf_data = PdfActionBase::getRendererData(request);
             string tmp_dir = ENV.TMPDIR ?? (PlatformOS == "Windows" ? ENV.TEMP ?? "." : "/tmp");
             string tmp_path = sprintf("%s/.pdf_enc_tmp_%d.pdf", tmp_dir, getpid());
-            PdfActionBase::writeBinaryFile(tmp_path, pdf_data);
+            # the module's own temporary file, not a path of the caller
+            pdf_write_binary_file(tmp_path, pdf_data);
             on_exit {
                 if (is_file(tmp_path)) {
                     unlink(tmp_path);

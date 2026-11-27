@@ -2,4 +2,11 @@
 
     @section pdf_1_0_0 pdf Module Version 1.0.0
     - initial release
+    - a custom font file (the \c font_path of a font) that the calling code gives
+      @ref Qore::Pdf::PdfEditor::drawText() "PdfEditor::drawText()" is refused with \c PERMISSION-DENIED if that
+      code is restricted from the file system, and the file-system policy of a sandbox that governs the code applies
+      to it (<a href="https://github.com/qoretechnologies/module-pdf/issues/8">issue 8</a>)
+    - @ref Qore::Pdf::PdfDocument::split() "PdfDocument::split()" checks each output file with the file-system
+      policy of a sandbox that governs the calling code, as the prefix can name another directory
+      (<a href="https://github.com/qoretechnologies/module-pdf/issues/8">issue 8</a>)
 */

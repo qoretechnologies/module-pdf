@@ -411,6 +411,10 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
 
             QoreString out_path;
             out_path.sprintf("%s/%s%zu.pdf", output_dir.c_str(), prefix.c_str(), i + 1);
+            // the prefix can name another directory: the file-system policy decides for each file written
+            if (smh && !smh->checkFilesystemAccess(out_path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+                return nullptr;
+            }
 
             QPDFWriter writer(out_qpdf, out_path.c_str());
             writer.write();
@@ -470,6 +474,10 @@ QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const
 
             QoreString out_path;
             out_path.sprintf("%s/%s%zu.pdf", output_dir.c_str(), prefix.c_str(), i + 1);
+            // the prefix can name another directory: the file-system policy decides for each file written
+            if (smh && !smh->checkFilesystemAccess(out_path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+                return outputs;
+            }
 
             QPDFWriter writer(out_qpdf, out_path.c_str());
             writer.write();

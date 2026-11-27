@@ -26,6 +26,7 @@
 
 %requires DataProvider
 %requires FileLocationHandler
+%requires Util
 %requires Mime
 %requires pdf
 
@@ -327,6 +328,36 @@ module PdfDataProvider {
     - @ref PdfDataProvider::PdfDocumentDataProvider "PdfDocumentDataProvider" - Document manipulation operations
     - @ref PdfDataProvider::PdfRenderDataProvider "PdfRenderDataProvider" - Rendering and text extraction operations (requires PDFium)
 
+    @section pdfdp_caller_paths Paths Given by Restricted Callers
+
+    The code of this module runs with its own %Program's options, so it decides with the restrictions of the code that
+    calls it before it uses a filesystem path or a location in a request: if that code is restricted from the
+    \c FILESYSTEM functional domain (for example with \c PO_NO_FILESYSTEM), the request is refused with
+    \c PERMISSION-DENIED before anything is read or written.  This also applies when the host created the provider
+    and gave it to restricted code (see @ref Qore::SandboxManager::isLentToRestricted()
+    "SandboxManager::isLentToRestricted()").  The file-system policy of a sandbox that governs the calling code
+    applies when a file is opened (\c FILESYSTEM-ACCESS-DENIED).  The checked fields are:
+    - \c input_path, \c location, \c output_path and \c output_location of the actions that have them
+    - \c document/merge: each element of \c inputs
+    - \c document/split: \c output_dir
+    - \c document/add-image: \c image.image_path and the \c image_path of each element of \c placements
+    - \c document/add-text: the \c font_path of the font of the style of \c text and of each element of
+      \c placements
+    - \c document/add-watermark: \c watermark.image_path and \c watermark.font.font_path
+    - \c document/add-signature-field: \c signature.image_path and \c signature.label_font.font_path
+    - @ref PdfDataProvider::PdfSignDataProvider "PdfSignDataProvider": \c input_path, \c output_path,
+      \c certificate_path and \c private_key_path (its \c location is the signing location, not a file location)
+
+    A location is refused if the calling code is restricted from a functional domain that the handler of its scheme
+    uses for its caller (\c FILESYSTEM for \c file:// locations; see
+    @ref FileLocationHandler::AbstractFileLocationHandler::getCallerDomains()
+    "AbstractFileLocationHandler::getCallerDomains()").  The handler of \c conn locations has no functional domains of
+    its own and gives the options of the location to the handler that it resolves the location to, which does not see
+    the code that a host-created provider was lent to: for such code, the options of \c conn locations are refused if
+    it is restricted from the file system or the network.
+    Requests that give the documents and images as data and
+    return the result as data work for restricted callers.
+
     @section pdfdp_factory Factory Name
 
     Factory string for DataProvider::getFactoryEx(): "pdf"
@@ -358,6 +389,10 @@ module PdfDataProvider {
 
     @section pdfdataproviderv10 PdfDataProvider Module Version 1.0
     - initial release
+    - the paths and locations that the actions' requests give are refused with \c PERMISSION-DENIED before they are
+      used if the calling code is restricted from the file system, also when the host created the provider and gave
+      it to that code (see @ref pdfdp_caller_paths,
+      <a href="https://github.com/qoretechnologies/module-pdf/issues/8">issue 8</a>)
 */
 
 public namespace PdfDataProvider {

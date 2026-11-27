@@ -80,6 +80,9 @@ public class PdfGetFormDataDataProvider inherits AbstractDataProvider {
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
+        # the paths and locations in the request are the caller's input, also for the code that a host-created
+        # provider was lent to: refused before anything is read or written if that code is restricted (issue #8)
+        PdfActionBase::checkCallerPaths(request, ("input_path",), ("location",));
 
         @debug("getting form data: input_path=%y location=%y has_data=%y fields=%y",
             request.input_path, request.location, exists request.data,

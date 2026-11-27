@@ -87,6 +87,10 @@ public class PdfSignDataProvider inherits AbstractDataProvider {
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
+        # the paths and locations in the request are the caller's input, also for the code that a host-created
+        # provider was lent to: refused before anything is read or written if that code is restricted (issue #8)
+        # (the "location" field of this request is the signing location, not a file location)
+        PdfActionBase::checkCallerPaths(request, ("input_path", "output_path", "certificate_path", "private_key_path"));
 
         # Validate required fields
         if (!request.input_path || request.input_path.size() == 0) {

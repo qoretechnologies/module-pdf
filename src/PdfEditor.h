@@ -163,6 +163,8 @@ private:
         @return reference to font object
     */
     PoDoFo::PdfFont& getFont(const QoreHashNode* fontSpec, ExceptionSink* xsink);
+    //! raises an exception and returns -1 if the font file of a font specification cannot be read for the caller
+    int checkFontPath(const QoreHashNode* fontSpec, ExceptionSink* xsink);
 
     //! Apply graphics state for opacity
     /** @param painter the painter object

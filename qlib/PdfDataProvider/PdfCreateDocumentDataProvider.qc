@@ -61,6 +61,9 @@ public class PdfCreateDocumentDataProvider inherits AbstractDataProvider {
 
     private auto doRequestImpl(auto req, *hash<auto> request_options) {
         hash<auto> request = req;
+        # the paths and locations in the request are the caller's input, also for the code that a host-created
+        # provider was lent to: refused before anything is read or written if that code is restricted (issue #8)
+        PdfActionBase::checkCallerPaths(request, ("output_path",), ("output_location",));
 
         @debug("creating document: output_path=%y output_location=%y",
             request.output_path, request.output_location);
