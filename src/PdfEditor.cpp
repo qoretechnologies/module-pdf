@@ -27,16 +27,17 @@
 #include "pdf-module.h"
 
 #include <cmath>
+#include <functional>
 #include <algorithm>
 #include <cctype>
 #include <map>
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
-    xsink->raiseException("PDF-ERROR", msg);
+    xsink->raiseException("PDF-ERROR", "%s", msg);
 }
 
 static void pdf_error(ExceptionSink* xsink, const std::string& msg) {
-    xsink->raiseException("PDF-ERROR", msg.c_str());
+    xsink->raiseException("PDF-ERROR", "%s", msg.c_str());
 }
 
 // Named colors mapping
@@ -91,6 +92,10 @@ static bool parseHexColor(const std::string& hex, double& r, double& g, double& 
 
 QorePdfEditor::QorePdfEditor(const std::string& path, const std::string& password,
                              ExceptionSink* xsink) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
@@ -121,11 +126,13 @@ QorePdfEditor::QorePdfEditor(const BinaryNode* data, const std::string& password
         return;
     }
 
+    // the document reads its objects from the data later: the data is kept as long as the document
+    binary_data = static_cast<BinaryNode*>(data->refSelf());
     try {
         doc = std::make_unique<PoDoFo::PdfMemDocument>();
         PoDoFo::bufferview buffer(
-            reinterpret_cast<const char*>(data->getPtr()),
-            data->size()
+            reinterpret_cast<const char*>(binary_data->getPtr()),
+            binary_data->size()
         );
         if (password.empty()) {
             doc->LoadFromBuffer(buffer);
@@ -239,11 +246,10 @@ int QorePdfEditor::checkFontPath(const QoreHashNode* fontSpec, ExceptionSink* xs
         return 0;
     }
     // the font file is a path that the calling code gives: it is refused if that code is restricted from the file
-    // system (the options of a module's own Program do not decide; module-pdf#8), and it is checked with the
-    // file-system policy of a sandbox that governs the code; both before the document is changed
-    if (qore_caller_restricts_domain(QDOM_FILESYSTEM)) {
-        xsink->raiseException("PERMISSION-DENIED", "the 'font_path' option cannot be used: the calling code is "
-            "restricted from the FILESYSTEM functional domain");
+    // system (the options of a module's own Program do not decide; module-pdf#8), also the code that a host-created
+    // editor was lent to (module-pdf#12), and it is checked with the file-system policy of a sandbox that governs the
+    // code; both before the document is changed
+    if (pdf_check_caller_path("font_path", true, xsink)) {
         return -1;
     }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
@@ -447,6 +453,10 @@ void QorePdfEditor::drawImage(int pageIndex, const std::string& imagePath,
         return;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("image_path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(imagePath.c_str(), QSEC_READ, xsink)) {
         return;
@@ -727,6 +737,10 @@ void QorePdfEditor::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
@@ -784,6 +798,10 @@ void QorePdfEditor::setFontOptions(const QoreHashNode* opts, ExceptionSink* xsin
 }
 
 QoreHashNode* QorePdfEditor::getImageDimensions(const std::string& path, ExceptionSink* xsink) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
@@ -1563,21 +1581,52 @@ bool QorePdfEditor::isEncrypted() const {
 
 QoreHashNode* QorePdfEditor::getEncryptionInfo(const std::string& path, const std::string& password,
                                                 ExceptionSink* xsink) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return nullptr;
     }
 
+    return getEncryptionInfoIntern([&path, &password] (PoDoFo::PdfMemDocument& tempDoc) {
+        if (password.empty()) {
+            tempDoc.Load(path);
+        } else {
+            tempDoc.Load(path, password);
+        }
+    }, xsink);
+}
+
+QoreHashNode* QorePdfEditor::getEncryptionInfoFromData(const BinaryNode* data, const std::string& password,
+                                                        ExceptionSink* xsink) {
+    if (!data || !data->size()) {
+        pdf_error(xsink, "PDF data is required");
+        return nullptr;
+    }
+    if (qore_check_cancel(xsink, "PDF encryption info")) {
+        return nullptr;
+    }
+    // the document is read from memory: no file is written or read
+    return getEncryptionInfoIntern([data, &password] (PoDoFo::PdfMemDocument& tempDoc) {
+        PoDoFo::bufferview buffer(reinterpret_cast<const char*>(data->getPtr()), data->size());
+        if (password.empty()) {
+            tempDoc.LoadFromBuffer(buffer);
+        } else {
+            tempDoc.LoadFromBuffer(buffer, password);
+        }
+    }, xsink);
+}
+
+QoreHashNode* QorePdfEditor::getEncryptionInfoIntern(const std::function<void(PoDoFo::PdfMemDocument&)>& load,
+                                                      ExceptionSink* xsink) {
     try {
         PoDoFo::PdfMemDocument tempDoc;
         bool encrypted = false;
 
         try {
-            if (password.empty()) {
-                tempDoc.Load(path);
-            } else {
-                tempDoc.Load(path, password);
-            }
+            load(tempDoc);
         } catch (const PoDoFo::PdfError& e) {
             // Check if it's a password error
             if (e.GetCode() == PoDoFo::PdfErrorCode::InvalidPassword) {

@@ -84,6 +84,8 @@ static bool PdfRenderer::isAvailable() [flags=CONSTANT] {
     @return a @ref Qore::Pdf::PdfRenderResult hash with pixel data
 
     @throw PDF-ERROR if rendering fails, dimensions are out of range, or PDFium is unavailable
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static hash<PdfRenderResult> PdfRenderer::renderPage(string path, int page_index,
         *int dpi = 150) [dom=FILESYSTEM;flags=NAMED_ARGS,RET_VALUE_ONLY] {
@@ -132,6 +134,8 @@ static hash<PdfRenderResult> PdfRenderer::renderPageFromData(binary data, int pa
     @return extracted text
 
     @throw PDF-ERROR if extraction fails or PDFium is unavailable
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static string PdfRenderer::extractText(string path, int page_index) [dom=FILESYSTEM;flags=NAMED_ARGS,RET_VALUE_ONLY] {
     if (page_index < 0 || page_index > std::numeric_limits<int>::max()) {

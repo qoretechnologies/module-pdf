@@ -9,4 +9,16 @@
     - @ref Qore::Pdf::PdfDocument::split() "PdfDocument::split()" checks each output file with the file-system
       policy of a sandbox that governs the calling code, as the prefix can name another directory
       (<a href="https://github.com/qoretechnologies/module-pdf/issues/8">issue 8</a>)
+    - the file paths that the methods of the PDF classes take, and the \c font_path of a font, are refused with
+      \c PERMISSION-DENIED for the restricted code that a host-created object of a module class was given to, as
+      the object's methods run with the file system lent (see @ref pdfcallerpaths and
+      @ref Qore::Pdf::PDF_LENT_PATH_CHECKS,
+      <a href="https://github.com/qoretechnologies/module-pdf/issues/12">issue 12</a>)
+    - @ref Qore::Pdf::PdfEditor::getEncryptionInfoFromData() "PdfEditor::getEncryptionInfoFromData()" returns the
+      encryption information of a document in memory, and @ref Qore::Pdf::PdfDocument::splitTo()
+      "PdfDocument::splitTo()" splits a document loaded from data
+      (<a href="https://github.com/qoretechnologies/module-pdf/issues/10">issue 10</a>)
+    - a @ref Qore::Pdf::PdfEditor "PdfEditor" created from data keeps the data that it reads its objects from later;
+      it read released memory once the caller released the data
+      (<a href="https://github.com/qoretechnologies/module-pdf/issues/13">issue 13</a>)
 */

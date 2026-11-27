@@ -27,6 +27,20 @@
 #include "QC_PdfEditor.h"
 #include "PdfEditor.h"
 
+/** @defgroup pdf_build_constants pdf Module Build Constants
+    These constants describe how the module was built.
+*/
+///@{
+//! True if the module decides on the paths that a lent object gives the PDF classes with the code it was lent to
+/** The module does if it was built with a %Qore that provides \c qore_caller_lent_to_restricts_domain() (see
+    @ref pdfcallerpaths); built with an older %Qore, only the calling code decides, and only for the \c font_path of a
+    font
+
+    @since %pdf 1.0
+*/
+const PDF_LENT_PATH_CHECKS = bool(PDF_LENT_PATH_CHECKS_VAL);
+///@}
+
 //! Position specification for PDF elements
 /**
     Specifies the position of elements on a PDF page.
@@ -162,8 +176,9 @@ hashdecl Qore::Pdf::PdfFontSpec {
 
     //! Path to custom TrueType/OpenType font file
     /** The file is read for the calling code: if that code is restricted from the \c FILESYSTEM functional domain,
-        the text is refused with \c PERMISSION-DENIED, and the file-system policy of a sandbox that governs the code
-        applies
+        also if it is the code that a host-created object of a module class that gives the font was given to, the text
+        is refused with \c PERMISSION-DENIED, and the file-system policy of a sandbox that governs the code applies
+        (see @ref pdfcallerpaths)
     */
     *string font_path;
 
@@ -188,6 +203,8 @@ qclass PdfEditor [arg=QorePdfEditor* editor; ns=Qore::Pdf];
     @param password optional password for encrypted PDFs
 
     @throw PDF-ERROR if the file cannot be loaded
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 PdfEditor::constructor(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -254,6 +271,8 @@ hash<auto> PdfEditor::getPageDimensions(int page_index) [flags=NAMED_ARGS] {
     @param opacity opacity value 0.0-1.0
 
     @throw PDF-ERROR if the image cannot be drawn
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 nothing PdfEditor::drawImage(int page_index, string image_path, float x, float y,
         float width = 0.0, float height = 0.0, float rotation = 0.0, float opacity = 1.0)
@@ -299,7 +318,8 @@ nothing PdfEditor::drawImageFromData(int page_index, binary image_data, float x,
 
     @throw PDF-ERROR if the text cannot be drawn
     @throw PERMISSION-DENIED the font of the style has a \c font_path and the calling code is restricted from the
-    \c FILESYSTEM functional domain
+    \c FILESYSTEM functional domain, or it is given by a method of an object of a module class that the host created
+    and gave to such code (see @ref pdfcallerpaths)
     @throw FILESYSTEM-ACCESS-DENIED the font of the style has a \c font_path that the file-system policy of a sandbox
     that governs the calling code does not allow to read
 */
@@ -325,6 +345,8 @@ nothing PdfEditor::setFontOptions(hash<PdfFontOptions> options) [flags=NAMED_ARG
     @param path output file path
 
     @throw PDF-ERROR if the document cannot be saved
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 nothing PdfEditor::save(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -351,6 +373,8 @@ binary PdfEditor::saveToMemory() {
     @return hash with "width" and "height" in pixels
 
     @throw PDF-ERROR if the image cannot be read
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static hash<auto> PdfEditor::getImageDimensions(string path) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -538,6 +562,8 @@ bool PdfEditor::isEncrypted() {
     - \c permissions: hash with permission flags (if encrypted)
 
     @throw PDF-ERROR if file cannot be read
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
 */
 static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [dom=FILESYSTEM;flags=NAMED_ARGS] {
     if (!path || path->empty()) {
@@ -546,6 +572,28 @@ static hash<auto> PdfEditor::getEncryptionInfo(string path, *string password) [d
     }
     std::string pwd = password ? password->c_str() : "";
     return QorePdfEditor::getEncryptionInfo(path->c_str(), pwd, xsink);
+}
+
+//! Gets encryption information from PDF data in memory
+/**
+    @param data the PDF document
+    @param password optional password to decrypt
+
+    @return hash with encryption information, as getEncryptionInfo() returns it:
+    - \c encrypted: boolean
+    - \c algorithm: encryption algorithm (if encrypted)
+    - \c key_length: key length in bits (if encrypted)
+    - \c permissions: hash with permission flags (if encrypted)
+
+    @throw PDF-ERROR if the data is empty or cannot be read
+
+    @note no file is read or written
+
+    @since %pdf 1.0
+*/
+static hash<auto> PdfEditor::getEncryptionInfoFromData(binary data, *string password) [flags=NAMED_ARGS] {
+    std::string pwd = password ? password->c_str() : "";
+    return QorePdfEditor::getEncryptionInfoFromData(data, pwd, xsink);
 }
 
 // ========== Digital Signature Operations ==========

@@ -168,9 +168,8 @@ public class PdfSignDataProvider inherits AbstractDataProvider {
 
         # Save the document
         if (output_path == request.input_path) {
-            string temp_path = output_path + ".tmp";
-            editor.save(temp_path);
-            rename(temp_path, output_path);
+            # atomic overwrite with a new temporary file (module-pdf#10)
+            PdfActionBase::replaceFile(output_path, editor.saveToMemory());
         } else {
             editor.save(output_path);
         }

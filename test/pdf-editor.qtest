@@ -68,6 +68,7 @@ public class PdfEditorTest inherits QUnit::Test {
         addTestCase("Data provider add-signature-field tests", \dataProviderAddSignatureFieldTest());
         addTestCase("Negative tests", \negativeTest());
         addTestCase("Corner case tests", \cornerCaseTest());
+        addTestCase("Editors and documents from released data", \releasedDataTest());
 
         set_return_value(main());
     }
@@ -550,5 +551,43 @@ public class PdfEditorTest inherits QUnit::Test {
         dims = PdfEditor::getImageDimensionsFromData(imgData);
         assertTrue(dims.width > 0, "image width from data > 0");
         assertTrue(dims.height > 0, "image height from data > 0");
+    }
+
+    #! an editor or document made from data that the caller releases keeps the data that it reads later
+    /** PoDoFo and QPDF read the objects of a document loaded from memory when they are used: the data is kept for the
+        lifetime of the object (module-pdf#13); under valgrind, the released data was read here before
+    */
+    releasedDataTest() {
+        PdfEditor editor = getEditor();
+        assertEq(2, editor.pageCount(), "editor page count");
+        assertEq(612.0, editor.getPageDimensions(1).width, "editor page width");
+        assertEq((), editor.getFormFields(), "editor form fields");
+        editor.drawText(1, "text", 10.0, 10.0);
+        binary out = editor.saveToMemory();
+        assertEq(2, new PdfEditor(out).pageCount(), "saved editor page count");
+
+        PdfDocument doc = getDocument();
+        assertEq(2, doc.pageCount(), "document page count");
+        assertEq("released", doc.metadata().title, "document title");
+        assertEq(2, new PdfDocument(doc.toData()).pageCount(), "saved document page count");
+    }
+
+    #! returns an editor of a document whose data is released when this returns
+    private static PdfEditor getEditor() {
+        return new PdfEditor(getData());
+    }
+
+    #! returns a document whose data is released when this returns
+    private static PdfDocument getDocument() {
+        return new PdfDocument(getData());
+    }
+
+    #! returns a two-page document
+    private static binary getData() {
+        PdfWriter writer();
+        writer.addTextPage("page 1");
+        writer.addTextPage("page 2");
+        writer.setMetadata(<PdfMetadata>{"title": "released"});
+        return writer.saveToMemory();
     }
 }

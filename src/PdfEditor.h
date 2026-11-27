@@ -30,6 +30,7 @@
 #include <podofo/podofo.h>
 
 #include <string>
+#include <functional>
 #include <memory>
 
 //! PDF Editor class for modifying existing PDF documents
@@ -145,6 +146,9 @@ public:
     static QoreHashNode* getImageDimensionsFromData(const BinaryNode* data, ExceptionSink* xsink);
 
 private:
+    //! the data that the document was loaded from: PoDoFo reads objects from it later (delayed loading), so it is
+    //! kept for the lifetime of the document and released after it (declared before it; module-pdf#13)
+    SimpleRefHolder<BinaryNode> binary_data;
     std::unique_ptr<PoDoFo::PdfMemDocument> doc;
     bool embed_fonts = true;
     bool subset_fonts = true;
@@ -260,6 +264,15 @@ public:
     static QoreHashNode* getEncryptionInfo(const std::string& path, const std::string& password,
                                            ExceptionSink* xsink);
 
+    //! Gets encryption information from PDF data in memory
+    /** @param data the PDF document
+        @param password optional password to decrypt
+        @param xsink exception sink for error handling
+        @return hash with encryption information
+    */
+    static QoreHashNode* getEncryptionInfoFromData(const BinaryNode* data, const std::string& password,
+                                                   ExceptionSink* xsink);
+
     //! Returns whether the document is encrypted
     /** @return true if encrypted, false otherwise
     */
@@ -302,6 +315,10 @@ public:
 private:
     //! Convert PoDoFo field type to string
     static std::string fieldTypeToString(PoDoFo::PdfFieldType type);
+
+    //! Returns the encryption information of a document that the given function loads
+    static QoreHashNode* getEncryptionInfoIntern(const std::function<void(PoDoFo::PdfMemDocument&)>& load,
+                                                 ExceptionSink* xsink);
 
     //! Convert string to PoDoFo field type
     static PoDoFo::PdfFieldType stringToFieldType(const std::string& type);

@@ -223,7 +223,8 @@ public class PdfAddWatermarkDataProvider inherits AbstractDataProvider {
         # Font
         hash<Qore::Pdf::PdfFontSpec> font();
         if (wm.font) {
-            font = wm.font;
+            # a plain hash, as JSON, qdp or a Qorus action gives it, is converted (issue #9)
+            font = cast<hash<Qore::Pdf::PdfFontSpec>>(wm.font);
         }
         if (!font.size) {
             font.size = DefaultFontSize;

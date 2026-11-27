@@ -91,7 +91,8 @@ public class PdfGetFormDataDataProvider inherits AbstractDataProvider {
         PdfEditor editor = PdfActionBase::loadEditor(request);
         list<hash<auto>> all_fields = editor.getFormFields();
 
-        hash<auto> data;
+        # a document without form fields has no form data (issue #10)
+        hash<auto> data = {};
         foreach hash<auto> field in (all_fields) {
             # Skip if specific fields requested and this isn't in the list
             if (request.fields && !inlist(field.name, request.fields)) {

@@ -1,0 +1,142 @@
+# -*- mode: qore; indent-tabs-mode: nil -*-
+#! @file PdfLentUser.qm test module whose objects the host lends to restricted code (module-pdf#12)
+
+/*  PdfLentUser.qm Copyright 2026 Qore Technologies, s.r.o.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+*/
+
+%requires pdf
+
+%modern
+
+module PdfLentUser {
+    version = "1.0";
+    desc = "test module whose objects the host lends to restricted code";
+    author = "Qore Technologies, s.r.o.";
+    url = "https://github.com/qoretechnologies/module-pdf";
+    license = "MIT";
+}
+
+#! the test module's namespace
+public namespace PdfLentUser {
+#! uses a PDF editor with the paths that its caller gives
+/** An object of a class of a module that unrestricted code (the host) creates is a capability: when the host lends
+    it to restricted code, its methods run with the file system lent, so the PDF classes decide on the paths with the
+    code that it was lent to
+*/
+public class PdfUser {
+    private {
+        PdfEditor editor;
+    }
+
+    #! creates the object with the editor that the host gives
+    constructor(PdfEditor editor) {
+        self.editor = editor;
+    }
+
+    #! draws text with the given font
+    drawText(hash<auto> font) {
+        editor.drawText(0, "text", 10.0, 10.0, <PdfTextStyle>{"font": font});
+    }
+
+    #! draws the given image file
+    drawImage(string path) {
+        editor.drawImage(0, path, 10.0, 10.0);
+    }
+
+    #! draws the given image data
+    drawImageFromData(binary data) {
+        editor.drawImageFromData(0, data, 10.0, 10.0);
+    }
+
+    #! saves the editor's document to the given file
+    save(string path) {
+        editor.save(path);
+    }
+
+    #! returns the editor's document
+    binary saveToMemory() {
+        return editor.saveToMemory();
+    }
+
+    #! loads an editor from the given file
+    load(string path) {
+        PdfEditor e(path);
+    }
+
+    #! returns the dimensions of the given image file
+    hash<auto> getImageDimensions(string path) {
+        return PdfEditor::getImageDimensions(path);
+    }
+
+    #! returns the encryption information of the given file
+    hash<auto> getEncryptionInfo(string path) {
+        return PdfEditor::getEncryptionInfo(path);
+    }
+
+    #! returns the encryption information of the given data
+    hash<auto> getEncryptionInfoFromData(binary data) {
+        return PdfEditor::getEncryptionInfoFromData(data);
+    }
+
+    #! saves the given document to the given file
+    saveDocument(binary data, string path) {
+        PdfDocument doc(data);
+        doc.save(path);
+    }
+
+    #! loads a document from the given file
+    loadDocument(string path) {
+        PdfDocument doc(path);
+    }
+
+    #! loads a reader from the given file
+    loadReader(string path) {
+        PdfReader reader(path);
+    }
+
+    #! merges the given files
+    merge(list<string> inputs) {
+        PdfDocument::merge(inputs);
+    }
+
+    #! splits the given file to the given directory
+    split(string input, string output_dir) {
+        PdfDocument::split(input, output_dir);
+    }
+
+    #! saves a new document to the given file
+    saveWriter(string path) {
+        PdfWriter writer();
+        writer.addTextPage("text");
+        writer.save(path);
+    }
+
+    #! extracts the text of the given file
+    string extractText(string path) {
+        return PdfRenderer::extractText(path, 0);
+    }
+
+    #! renders a page of the given file
+    hash<PdfRenderResult> renderPage(string path) {
+        return PdfRenderer::renderPage(path, 0);
+    }
+}
+}

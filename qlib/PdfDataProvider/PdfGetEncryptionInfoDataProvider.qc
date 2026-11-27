@@ -97,18 +97,9 @@ public class PdfGetEncryptionInfoDataProvider inherits AbstractDataProvider {
             # Use static method directly for file path input
             info = PdfEditor::getEncryptionInfo(request.input_path, request.password);
         } else {
-            # For data/location inputs, get binary data and write to temp file
+            # data and location inputs are read in memory: no temporary file is written (issue #10)
             binary pdf_data = PdfActionBase::getRendererData(request);
-            string tmp_dir = ENV.TMPDIR ?? (PlatformOS == "Windows" ? ENV.TEMP ?? "." : "/tmp");
-            string tmp_path = sprintf("%s/.pdf_enc_tmp_%d.pdf", tmp_dir, getpid());
-            # the module's own temporary file, not a path of the caller
-            pdf_write_binary_file(tmp_path, pdf_data);
-            on_exit {
-                if (is_file(tmp_path)) {
-                    unlink(tmp_path);
-                }
-            }
-            info = PdfEditor::getEncryptionInfo(tmp_path, request.password);
+            info = PdfEditor::getEncryptionInfoFromData(pdf_data, request.password);
         }
 
         @debug("encryption info: encrypted=%y algorithm=%y", info.encrypted, info.algorithm);

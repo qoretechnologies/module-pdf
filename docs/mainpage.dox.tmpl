@@ -40,6 +40,25 @@ qdp 'pdf{}/render/page' input_path=out.pdf,page_index=0,dpi=150
 qdp 'pdf{}/render/extract-text' input_path=out.pdf,page_index=0
 \endcode
 
+\section pdfcallerpaths Paths and Restricted Code
+
+The methods that take a file path, and the \c font_path of a font given to
+@ref Qore::Pdf::PdfEditor::drawText() "PdfEditor::drawText()", refuse the path with \c PERMISSION-DENIED before
+anything is read or written if the code that gives it is restricted from the \c FILESYSTEM functional domain (for
+example with \c PO_NO_FILESYSTEM).  The methods with the \c FILESYSTEM functional domain cannot be called by such
+code at all; a method of an object of a module class that the host created and gave to restricted code, however,
+runs with the file system lent, so the paths that such a method gives these classes are decided with the code that
+the object was given to (with a %Qore that provides \c qore_caller_lent_to_restricts_domain(), which defines
+\c QORE_HAVE_CALLER_AMBIENT_PREDICATES; built with an older %Qore, only the calling code decides, and only for a
+\c font_path; @ref Qore::Pdf::PDF_LENT_PATH_CHECKS tells which).  The file-system policy of a sandbox that governs the calling code applies when a file is opened
+(\c FILESYSTEM-ACCESS-DENIED).  Documents, images and fonts given as data, and the state of an existing object (its
+document, its font options), can be used by restricted code.
+
+The code that decides is that of the caller of the module code that calls these classes, not the module's own
+%Program: a user module that restricted code calls (with or without a lent object) is refused the paths that it gives
+these classes for that code, also paths of its own (temporary or cached files); module code that serves restricted
+code uses the methods that take and return data.
+
 \section pdfdependencies Dependencies
 
 - QPDF (required)

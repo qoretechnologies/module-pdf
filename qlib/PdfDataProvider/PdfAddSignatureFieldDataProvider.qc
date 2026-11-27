@@ -218,7 +218,10 @@ public class PdfAddSignatureFieldDataProvider inherits AbstractDataProvider {
         # Draw signature line if requested
         if (draw_line) {
             float line_width = sig.line_width ?? DefaultLineWidth;
-            hash<Qore::Pdf::PdfColor> line_color = sig.line_color ?? DefaultLineColor;
+            # a plain hash, as JSON, qdp or a Qorus action gives it, is converted (issue #9)
+            hash<Qore::Pdf::PdfColor> line_color = sig.line_color
+                ? cast<hash<Qore::Pdf::PdfColor>>(sig.line_color)
+                : DefaultLineColor;
 
             # Create a line style
             hash<Qore::Pdf::PdfTextStyle> line_style();
@@ -242,7 +245,8 @@ public class PdfAddSignatureFieldDataProvider inherits AbstractDataProvider {
             # Font
             hash<Qore::Pdf::PdfFontSpec> font();
             if (sig.label_font) {
-                font = sig.label_font;
+                # a plain hash, as JSON, qdp or a Qorus action gives it, is converted (issue #9)
+                font = cast<hash<Qore::Pdf::PdfFontSpec>>(sig.label_font);
             }
             if (!font.size) {
                 font.size = DefaultLabelFontSize;

@@ -30,7 +30,7 @@
 #include <qpdf/QPDFExc.hh>
 
 static void pdf_error(ExceptionSink* xsink, const char* msg) {
-    xsink->raiseException("PDF-ERROR", msg);
+    xsink->raiseException("PDF-ERROR", "%s", msg);
 }
 
 QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
@@ -44,6 +44,10 @@ QoreListNode* QorePdfDocument::collectWarnings(QPDF& qpdf) {
 
 QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd, ExceptionSink* xsink)
         : password(pwd) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_READ, xsink)) {
         return;
@@ -63,7 +67,7 @@ QorePdfDocument::QorePdfDocument(const std::string& path, const std::string& pwd
 }
 
 QorePdfDocument::QorePdfDocument(const BinaryNode* data, const std::string& pwd, ExceptionSink* xsink)
-        : binary_data(static_cast<BinaryNode*>(data->refSelf())), password(pwd) {
+        : binary_data(data ? static_cast<BinaryNode*>(data->refSelf()) : nullptr), password(pwd) {
     if (!data || data->size() == 0) {
         pdf_error(xsink, "binary data is empty");
         return;
@@ -193,6 +197,10 @@ void QorePdfDocument::save(const std::string& path, ExceptionSink* xsink) {
         return;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("path", false, xsink)) {
+        return;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
         return;
@@ -279,6 +287,10 @@ QorePdfDocument* QorePdfDocument::merge(const QoreListNode* inputs, const std::s
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("inputs", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
 
     try {
@@ -333,6 +345,10 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
         return nullptr;
     }
 
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("inputs", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     warnings = new QoreListNode();
 
@@ -380,8 +396,10 @@ QorePdfDocument* QorePdfDocument::mergeWithWarnings(const QoreListNode* inputs, 
 
 QoreListNode* QorePdfDocument::split(const std::string& input, const std::string& output_dir,
         const std::string& prefix, ExceptionSink* xsink) {
-    ReferenceHolder<QoreListNode> outputs(new QoreListNode(stringTypeInfo), xsink);
-
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("input_path", false, xsink)) {
+        return nullptr;
+    }
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return nullptr;
@@ -397,46 +415,81 @@ QoreListNode* QorePdfDocument::split(const std::string& input, const std::string
         QPDF in_qpdf;
         in_qpdf.setSuppressWarnings(true);
         in_qpdf.processFile(input.c_str(), nullptr);
-        QPDFPageDocumentHelper pdh(in_qpdf);
-        auto pages = pdh.getAllPages();
-
-        for (size_t i = 0; i < pages.size(); ++i) {
-            if (qore_check_cancel(xsink, "PDF document split")) {
-                return nullptr;
-            }
-            QPDF out_qpdf;
-            out_qpdf.emptyPDF();
-            QPDFPageDocumentHelper out_pdh(out_qpdf);
-            out_pdh.addPage(pages[i], false);
-
-            QoreString out_path;
-            out_path.sprintf("%s/%s%zu.pdf", output_dir.c_str(), prefix.c_str(), i + 1);
-            // the prefix can name another directory: the file-system policy decides for each file written
-            if (smh && !smh->checkFilesystemAccess(out_path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
-                return nullptr;
-            }
-
-            QPDFWriter writer(out_qpdf, out_path.c_str());
-            writer.write();
-
-            outputs->push(new QoreStringNode(out_path.c_str()), xsink);
-            if (*xsink) {
-                return nullptr;
-            }
-        }
-
-        return outputs.release();
+        return splitPages(in_qpdf, output_dir, prefix, smh, xsink);
     } catch (const std::exception& e) {
         pdf_error(xsink, e.what());
         return nullptr;
     }
 }
 
+QoreListNode* QorePdfDocument::splitTo(const std::string& output_dir, const std::string& prefix,
+        ExceptionSink* xsink) {
+    if (!has_doc) {
+        pdf_error(xsink, "document not initialized");
+        return nullptr;
+    }
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12)
+    if (pdf_check_caller_path("output_dir", false, xsink)) {
+        return nullptr;
+    }
+    QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
+    if (smh && !smh->checkFilesystemAccess(output_dir.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+        return nullptr;
+    }
+    if (qore_check_cancel(xsink, "PDF document split")) {
+        return nullptr;
+    }
+    try {
+        return splitPages(*qpdf, output_dir, prefix, smh, xsink);
+    } catch (const std::exception& e) {
+        pdf_error(xsink, e.what());
+        return nullptr;
+    }
+}
+
+QoreListNode* QorePdfDocument::splitPages(QPDF& in_qpdf, const std::string& output_dir, const std::string& prefix,
+        QoreSandboxManagerHelper& smh, ExceptionSink* xsink) {
+    ReferenceHolder<QoreListNode> outputs(new QoreListNode(stringTypeInfo), xsink);
+    QPDFPageDocumentHelper pdh(in_qpdf);
+    auto pages = pdh.getAllPages();
+
+    for (size_t i = 0; i < pages.size(); ++i) {
+        if (qore_check_cancel(xsink, "PDF document split")) {
+            return nullptr;
+        }
+        QPDF out_qpdf;
+        out_qpdf.emptyPDF();
+        QPDFPageDocumentHelper out_pdh(out_qpdf);
+        out_pdh.addPage(pages[i], false);
+
+        QoreString out_path;
+        out_path.sprintf("%s/%s%zu.pdf", output_dir.c_str(), prefix.c_str(), i + 1);
+        // the prefix can name another directory: the file-system policy decides for each file written
+        if (smh && !smh->checkFilesystemAccess(out_path.c_str(), QSEC_WRITE | QSEC_CREATE, xsink)) {
+            return nullptr;
+        }
+
+        QPDFWriter writer(out_qpdf, out_path.c_str());
+        writer.write();
+
+        outputs->push(new QoreStringNode(out_path.c_str()), xsink);
+        if (*xsink) {
+            return nullptr;
+        }
+    }
+
+    return outputs.release();
+}
+
 QoreListNode* QorePdfDocument::splitWithWarnings(const std::string& input, const std::string& output_dir,
         const std::string& prefix, QoreListNode*& warnings, ExceptionSink* xsink) {
+    // a path of the calling code (also of the code that a host-created object was lent to; module-pdf#12); checked
+    // before anything is allocated
+    if (pdf_check_caller_path("input_path", false, xsink)) {
+        return nullptr;
+    }
     QoreListNode* outputs = new QoreListNode();
     warnings = new QoreListNode();
-
     QoreSandboxManagerHelper smh(QoreSandboxManagerHelper::Policy);
     if (smh && !smh->checkFilesystemAccess(input.c_str(), QSEC_READ, xsink)) {
         return outputs;
