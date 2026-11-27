@@ -144,9 +144,7 @@ public class PdfActionBase inherits AbstractDataProvider {
         } else if (req.overwrite && PdfActionBase::hasFilePathInput(req)) {
             # Overwrite input file with atomic temp + rename
             string output_path = req.input_path;
-            string temp_path = output_path + ".tmp";
-            PdfActionBase::writeBinaryFile(temp_path, pdf_data);
-            rename(temp_path, output_path);
+            PdfActionBase::replaceFile(output_path, pdf_data);
             response."output_path" = output_path;
         }
 
@@ -197,14 +195,8 @@ public class PdfActionBase inherits AbstractDataProvider {
         # Write to output_path if specified
         if (has_output_path) {
             if (req.output_path == req.input_path) {
-                # Atomic overwrite with temp file
-                string temp_path = req.output_path + ".tmp";
-                if (pdf_data) {
-                    PdfActionBase::writeBinaryFile(temp_path, pdf_data);
-                } else {
-                    editor.save(temp_path);
-                }
-                rename(temp_path, req.output_path);
+                # Atomic overwrite with a new temporary file
+                PdfActionBase::replaceFile(req.output_path, pdf_data ?? editor.saveToMemory());
             } else {
                 if (pdf_data) {
                     PdfActionBase::writeBinaryFile(req.output_path, pdf_data);
@@ -216,13 +208,7 @@ public class PdfActionBase inherits AbstractDataProvider {
         } else if (req.overwrite && PdfActionBase::hasFilePathInput(req)) {
             # Overwrite input file
             string output_path = req.input_path;
-            string temp_path = output_path + ".tmp";
-            if (pdf_data) {
-                PdfActionBase::writeBinaryFile(temp_path, pdf_data);
-            } else {
-                editor.save(temp_path);
-            }
-            rename(temp_path, output_path);
+            PdfActionBase::replaceFile(output_path, pdf_data ?? editor.saveToMemory());
             response."output_path" = output_path;
         }
 
@@ -387,6 +373,44 @@ public class PdfActionBase inherits AbstractDataProvider {
             throw "PERMISSION-DENIED", sprintf("the options of the location in the %y field of the request cannot be "
                 "used: the calling code is restricted from the FILESYSTEM or NETWORK functional domain", field);
         }
+    }
+
+    #! Replaces a file with the given data atomically: the data is written to a new file next to it, which is renamed
+    /** The new file has a random name and is created exclusively (\c O_EXCL), so a file or symbolic link that another
+        user created at a predictable name is never written through (module-pdf#10)
+
+        @param path the file to replace
+        @param data the new content of the file
+
+        @throw PERMISSION-DENIED the calling code (also the code that a host-created provider was lent to) is restricted
+        from the \c FILESYSTEM functional domain; see checkCallerPaths()
+    */
+    static replaceFile(string path, binary data) {
+        # the path is the caller's input when this public method is called directly
+        PdfActionBase::checkCallerPaths({"path": path}, ("path",));
+        string temp_path;
+        File f();
+        int tries = 0;
+        while (True) {
+            temp_path = sprintf("%s.%s.tmp", path, get_random_string(16));
+            try {
+                f.open2(temp_path, O_CREAT | O_EXCL | O_WRONLY);
+                break;
+            } catch (hash<ExceptionInfo> ex) {
+                # another file has the name: another name is tried
+                if (exists hlstat(temp_path) && ++tries < 10) {
+                    continue;
+                }
+                rethrow;
+            }
+        }
+        on_error {
+            f.close();
+            unlink(temp_path);
+        }
+        f.write(data);
+        f.close();
+        rename(temp_path, path);
     }
 
     #! Writes binary data to a file

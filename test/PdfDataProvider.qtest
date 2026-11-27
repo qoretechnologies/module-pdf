@@ -69,6 +69,8 @@ public class PdfDataProviderTest inherits QUnit::Test {
         addTestCase("Plain hash signature field fonts and colors", \plainHashSignatureFieldTest());
         addTestCase("Form data without form fields", \formDataWithoutFieldsTest());
         addTestCase("Encryption info of data", \encryptionInfoDataTest());
+        addTestCase("Overwrite temporary files", \overwriteTempFileTest());
+        addTestCase("Split of data", \splitDataTest());
 
         set_return_value(main());
     }
@@ -254,6 +256,67 @@ public class PdfDataProviderTest inherits QUnit::Test {
             "static: user password");
         assertThrows("PDF-ERROR", \PdfEditor::getEncryptionInfoFromData(), binary(), "static: empty data");
         assertThrows("PDF-ERROR", \PdfEditor::getEncryptionInfoFromData(), binary("not a pdf"), "static: not a PDF");
+    }
+
+    #! a split of data or a location splits in memory: no temporary file is written to the output directory (issue #10)
+    splitDataTest() {
+        string dir = testDir + "/split-data";
+        mkdir(dir);
+        PdfWriter writer();
+        writer.addTextPage("one");
+        writer.addTextPage("two");
+        binary data = writer.saveToMemory();
+        # the old temporary file name, pre-created by another user as a symlink
+        string target = testDir + "/split-target";
+        File f();
+        f.open2(target, O_CREAT | O_WRONLY | O_TRUNC);
+        f.write("target");
+        f.close();
+        string link = sprintf("%s/.pdf_split_tmp_%d.pdf", dir, getpid());
+        symlink(target, link);
+        hash<auto> response = getDocumentProvider("split").doRequest({"data": data, "output_dir": dir,
+            "prefix": "p"});
+        assertEq(2, response.count, "split count");
+        assertEq((dir + "/p1.pdf", dir + "/p2.pdf"), response.outputs, "split outputs");
+        assertEq(1, new PdfDocument(dir + "/p2.pdf").pageCount(), "split page");
+        assertEq(binary("target"), ReadOnlyFile::readBinaryFile(target), "nothing written through the symlink");
+        assertTrue(is_link(link), "the symlink is not removed");
+        # PdfDocument::splitTo() of a document from data
+        PdfDocument doc(data);
+        assertEq((dir + "/q1.pdf", dir + "/q2.pdf"), doc.splitTo(dir, "q"), "splitTo()");
+        assertThrows("PDF-ERROR", \doc.splitTo(), "", "splitTo() without a directory");
+    }
+
+    #! an overwrite never writes through a file or symlink at a predictable temporary name (issue #10)
+    overwriteTempFileTest() {
+        string dir = testDir + "/overwrite";
+        mkdir(dir);
+        string path = dir + "/doc.pdf";
+        string target = dir + "/target";
+        foreach string f in ((path, target)) {
+            File file();
+            file.open2(f, O_CREAT | O_WRONLY | O_TRUNC);
+            file.write(f == path ? getPdfData("overwrite") : binary("target"));
+            file.close();
+        }
+        # the old temporary file name, pre-created by another user as a symlink
+        symlink(target, path + ".tmp");
+        # an editor action and a document action, each overwriting its input
+        hash<auto> response = getDocumentProvider("add-text").doRequest({"input_path": path, "overwrite": True,
+            "text": {"text": "x"}});
+        assertEq(path, response.output_path, "add-text overwrite");
+        response = getDocumentProvider("metadata").doRequest({"input_path": path, "overwrite": True,
+            "metadata": {"title": "overwritten"}});
+        assertEq(path, response.output_path, "metadata overwrite");
+        response = getDocumentProvider("add-text").doRequest({"input_path": path, "output_path": path,
+            "text": {"text": "y"}});
+        assertEq(path, response.output_path, "add-text output to the input");
+        assertEq(binary("target"), ReadOnlyFile::readBinaryFile(target), "nothing written through the symlink");
+        assertTrue(is_link(path + ".tmp"), "the symlink is not replaced");
+        assertEq("overwritten", new PdfDocument(path).metadata().title, "the input is overwritten");
+        Dir d();
+        d.chdir(dir);
+        assertEq(sort(("doc.pdf", "doc.pdf.tmp", "target")), sort(d.list() ?? ()), "no temporary file left");
     }
 
     #! returns a PDF document with the given text

@@ -27,6 +27,7 @@
 #define QORE_PDF_DOCUMENT_H
 
 #include <qore/Qore.h>
+#include <qore/QoreSandboxManager.h>
 
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFPageDocumentHelper.hh>
@@ -59,11 +60,17 @@ public:
             QoreListNode*& warnings, ExceptionSink* xsink);
     static QoreListNode* split(const std::string& input, const std::string& output_dir,
             const std::string& prefix, ExceptionSink* xsink);
+    //! Splits the document into single-page files in the given directory
+    QoreListNode* splitTo(const std::string& output_dir, const std::string& prefix, ExceptionSink* xsink);
     static QoreListNode* splitWithWarnings(const std::string& input, const std::string& output_dir,
             const std::string& prefix, QoreListNode*& warnings, ExceptionSink* xsink);
 
     //! Helper to convert QPDF warnings to a Qore list
     static QoreListNode* collectWarnings(QPDF& qpdf);
+
+    //! Writes each page of the given document to its own file in the given directory
+    static QoreListNode* splitPages(QPDF& in_qpdf, const std::string& output_dir, const std::string& prefix,
+            QoreSandboxManagerHelper& smh, ExceptionSink* xsink);
 
 private:
     //! the data of a document loaded from memory, which QPDF reads for the lifetime of the QPDF object: declared before

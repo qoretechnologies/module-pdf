@@ -107,6 +107,9 @@ string sub helper(string what, string path, binary data) {
             case \"write\":
                 PdfActionBase::writeBinaryFile(path, data);
                 break;
+            case \"replace\":
+                PdfActionBase::replaceFile(path, data);
+                break;
             case \"load\":
                 PdfActionBase::loadDocument({\"input_path\": path});
                 break;
@@ -390,7 +393,8 @@ string sub lent_call(object obj, string method, softlist<auto> args) {
         # a failed case before this one can leave outputs
         reset();
         # a path that evaluates to False is a path too
-        foreach list<string> h in (("write", out), ("write", "0"), ("output", out), ("save", out), ("load", input),
+        foreach list<string> h in (("write", out), ("write", "0"), ("replace", out), ("replace", "0"), ("output", out),
+                ("save", out), ("load", input),
                 ("editor", input), ("renderer", input)) {
             string desc = sprintf("%s %s", h[0], mode);
             assertEq("PERMISSION-DENIED", getProgram("nofs", mode).callFunction("helper", h[0], h[1], pdf_data),

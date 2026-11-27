@@ -72,12 +72,15 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
         @debug("splitting document: input_path=%y location=%y has_data=%y output_dir=%y",
             request.input_path, request.location, exists request.data, request.output_dir);
 
-        # For binary/location input, write to temp file first since split uses file paths
-        string input_path;
-        *string temp_path;
+        *string prefix = request.prefix;
+        list<string> outputs;
+        PdfDocument doc;
         if (request.input_path) {
-            input_path = request.input_path;
+            # Load document first to capture warnings
+            doc = new PdfDocument(request.input_path);
+            outputs = PdfDocument::split(request.input_path, request.output_dir, prefix ? prefix : "page_");
         } else {
+            # data and location inputs are split in memory: no temporary file is written (issue #10)
             binary pdf_data;
             if (request.location) {
                 pdf_data = FileLocationHandler::getBinaryFileFromLocation(request.location);
@@ -86,23 +89,9 @@ public class PdfSplitDocumentDataProvider inherits AbstractDataProvider {
             } else {
                 throw "PDF-ERROR", "one of 'input_path', 'data', or 'location' must be provided";
             }
-            temp_path = sprintf("%s/.pdf_split_tmp_%d.pdf", request.output_dir, getpid());
-            PdfActionBase::writeBinaryFile(temp_path, pdf_data);
-            input_path = temp_path;
+            doc = new PdfDocument(pdf_data);
+            outputs = doc.splitTo(request.output_dir, prefix ? prefix : "page_");
         }
-
-        on_exit {
-            if (temp_path && is_file(temp_path)) {
-                unlink(temp_path);
-            }
-        }
-
-        # Load document first to capture warnings
-        PdfDocument doc(input_path);
-
-        *string prefix = request.prefix;
-        list<string> outputs = PdfDocument::split(input_path, request.output_dir,
-            prefix ? prefix : "page_");
 
         hash<PdfSplitDocumentResponse> response();
         response.outputs = outputs;

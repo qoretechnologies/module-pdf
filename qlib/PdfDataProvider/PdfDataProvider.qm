@@ -396,8 +396,9 @@ module PdfDataProvider {
     - the fonts and colors of watermarks and signature fields can be given as plain hashes, as JSON, \c qdp or a
       Qorus action give them (<a href="https://github.com/qoretechnologies/module-pdf/issues/9">issue 9</a>)
     - \c document/get-form-data returns empty form data for a document without form fields, and
-      \c document/get-encryption-info reads documents given as data or locations in memory, without a temporary
-      file (<a href="https://github.com/qoretechnologies/module-pdf/issues/10">issue 10</a>)
+      \c document/get-encryption-info and \c document/split read documents given as data or locations in memory,
+      without a temporary file, and an action that overwrites its input writes a new temporary file with a random
+      name, created exclusively (<a href="https://github.com/qoretechnologies/module-pdf/issues/10">issue 10</a>)
 */
 
 public namespace PdfDataProvider {

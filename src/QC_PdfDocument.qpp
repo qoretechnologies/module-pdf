@@ -202,6 +202,30 @@ static PdfDocument PdfDocument::merge(list<string> inputs, *string password) [do
     return new QoreObject(QC_PDFDOCUMENT, getProgram(), holder.release());
 }
 
+//! Splits the document into single-page PDFs in the given directory
+/** The document's own data is split, also for a document loaded from data: no other file is read or written
+
+    @param output_dir output directory
+    @param prefix output filename prefix
+
+    @return list of output file paths
+
+    @throw PDF-ERROR if the document is not initialized or an output file cannot be written
+    @throw FILESYSTEM-ACCESS-DENIED the file-system policy of a sandbox that governs the calling code does not allow
+    an output file to be written; each output file is checked, as the prefix can name another directory
+    @throw PERMISSION-DENIED the path is given by a method of an object of a module class that the host created and
+    gave to code restricted from the \c FILESYSTEM functional domain (see @ref pdfcallerpaths)
+
+    @since %pdf 1.0
+*/
+list<string> PdfDocument::splitTo(string output_dir, *string prefix = "page_") [dom=FILESYSTEM;flags=NAMED_ARGS] {
+    if (!output_dir || output_dir->empty()) {
+        xsink->raiseException("PDF-ERROR", "Output directory is required");
+        return QoreValue();
+    }
+    return doc->splitTo(output_dir->c_str(), prefix ? prefix->c_str() : "page_", xsink);
+}
+
 //! Splits a PDF into single-page PDFs
 /** @param input_path input PDF path
     @param output_dir output directory

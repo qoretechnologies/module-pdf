@@ -54,6 +54,11 @@ the object was given to (with a %Qore that provides \c qore_caller_lent_to_restr
 (\c FILESYSTEM-ACCESS-DENIED).  Documents, images and fonts given as data, and the state of an existing object (its
 document, its font options), can be used by restricted code.
 
+The code that decides is that of the caller of the module code that calls these classes, not the module's own
+%Program: a user module that restricted code calls (with or without a lent object) is refused the paths that it gives
+these classes for that code, also paths of its own (temporary or cached files); module code that serves restricted
+code uses the methods that take and return data.
+
 \section pdfdependencies Dependencies
 
 - QPDF (required)

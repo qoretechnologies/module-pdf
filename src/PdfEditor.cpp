@@ -1605,6 +1605,9 @@ QoreHashNode* QorePdfEditor::getEncryptionInfoFromData(const BinaryNode* data, c
         pdf_error(xsink, "PDF data is required");
         return nullptr;
     }
+    if (qore_check_cancel(xsink, "PDF encryption info")) {
+        return nullptr;
+    }
     // the document is read from memory: no file is written or read
     return getEncryptionInfoIntern([data, &password] (PoDoFo::PdfMemDocument& tempDoc) {
         PoDoFo::bufferview buffer(reinterpret_cast<const char*>(data->getPtr()), data->size());
